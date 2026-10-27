@@ -1,0 +1,83 @@
+/* Illustrations — Domain 42: Radio & RF Engineering, built on the kit in illus_core.js */
+(function(){
+  const K=window.ILLUS_KIT; const {svg,text,box,arrow,line,flow,stack,pyramid,cycle,tree,compare,CY,MG,AM,LM,DIM}=K;
+  const I={};
+  /* ================= DOMAIN 42: Radio & RF ================= */
+  I.p42m1=[{cap:"The spectrum as a street: each band has residents, a propagation behavior and a wavelength. Antennas scale with the wavelength row, and the rules (licensed, Part 15, Part 97) are drawn on top of all of it.",
+    svg:svg(560,250,`${text(280,16,'higher frequency → shorter waves, smaller antennas, more line-of-sight',{size:10,color:DIM})}
+      ${[['LF / MF\n< 3 MHz',DIM],['HF\n3–30 MHz',AM],['VHF\n30–300 MHz',CY],['UHF\n0.3–3 GHz',MG],['SHF\n3–30 GHz',LM]].map(([t,c],i)=>box(10+i*108,28,104,34,t,{stroke:c,bold:true,size:11})).join('')}
+      ${['AM broadcast\n160 m ham\nWWVB 60 kHz','shortwave\nham 80–10 m\nCB 27 MHz','FM · aircraft\n6 m · 2 m\nMeteor-M 137','cell · GPS · ADS-B\n70 cm · 33 cm\nWi-Fi 2.4','Wi-Fi 5/6 GHz\n5G FR2 · radar\n10 GHz ham'].map((t,i)=>box(10+i*108,70,104,66,t,{size:9})).join('')}
+      ${['ground wave','ionospheric skip','line of sight +','line of sight','LOS · rain fade'].map((t,i)=>box(10+i*108,146,104,30,t,{size:9,stroke:DIM,dash:true})).join('')}
+      ${['λ 100 m – 10 km','λ 10 – 100 m','λ 1 – 10 m','λ 10 cm – 1 m','λ 1 – 10 cm'].map((t,i)=>box(10+i*108,186,104,30,t,{size:9,stroke:DIM})).join('')}
+      ${text(280,238,'λ(m) = 300 / f(MHz)   ·   half-wave antenna ≈ 150 / f(MHz) m',{bold:true,color:CY,size:11})}`,'The radio spectrum by band, residents, propagation and wavelength')},
+   {cap:"The dBm ladder. Every step is addition: +3 dB doubles, +10 dB is ten times. A 5 W handheld (37 dBm) and a receiver that is happy at −100 dBm leave 137 dB for the path to lose — a factor of 5 × 10¹³.",
+    svg:stack([{t:'1,500 W = 61.8 dBm — legal amateur maximum',stroke:MG},{t:'100 W = 50 dBm — HF base transceiver'},{t:'5 W = 37 dBm — 2 m handheld',stroke:CY},{t:'100 mW = 20 dBm — Wi-Fi access point'},{t:'1 mW = 0 dBm — the reference',stroke:DIM},{t:'0.1 pW = −100 dBm — a receiver still decodes',stroke:LM}],{w:400,label:'The dBm ladder from 1,500 W to 0.1 pW'})}];
+
+  I.p42m2=[{cap:"AM versus single sideband. AM spends two-thirds of its power on a carrier that carries nothing and sends the same audio twice; SSB suppresses the carrier and one sideband, so all the power goes into 2.4 kHz of information.",
+    svg:compare({t:'AM — 6 kHz',draw:x=>line(x+30,140,x+230,140)+line(x+130,50,x+130,140,{stroke:MG,sw:2.5})+`<polygon points="${x+70},140 ${x+125},72 ${x+125},140" fill="none" stroke="var(--cyan)" stroke-width="1.3"/><polygon points="${x+135},140 ${x+135},72 ${x+190},140" fill="none" stroke="var(--cyan)" stroke-width="1.3"/>`+text(x+130,40,'carrier (67% of power)',{size:10,color:MG})+text(x+97,154,'LSB',{size:10})+text(x+163,154,'USB',{size:10})+text(x+130,172,'both sidebands carry the same audio',{size:9,color:DIM})},
+      {t:'SSB — 2.4 kHz',draw:x=>line(x+30,140,x+230,140)+line(x+130,50,x+130,140,{stroke:DIM,dash:true})+`<polygon points="${x+135},140 ${x+135},72 ${x+190},140" fill="none" stroke="var(--lime)" stroke-width="1.6"/>`+text(x+130,40,'carrier suppressed',{size:10,color:DIM})+text(x+97,154,'(LSB removed)',{size:9,color:DIM})+text(x+163,154,'USB',{size:10,color:LM})+text(x+130,172,'all 100 W in the information',{size:9,color:LM})},{h:190,label:'AM versus SSB spectra'})},
+   {cap:"Constellations: QPSK carries 2 bits per symbol with four widely spaced states; 16-QAM carries 4 bits with sixteen closer states. Each step up in order needs about 3 dB more SNR, because noise moves a received point toward its neighbors.",
+    svg:svg(560,230,`${line(80,30,80,190)}${line(10,110,150,110)}${[[50,80],[110,80],[50,140],[110,140]].map(([cx,cy])=>`<circle cx="${cx}" cy="${cy}" r="6" fill="var(--cyan)"/>`).join('')}${text(80,210,'QPSK · 2 bits/symbol',{size:11,color:CY})}
+      ${line(420,30,420,190)}${line(350,110,490,110)}${[375,405,435,465].map(cx=>[65,95,125,155].map(cy=>`<circle cx="${cx}" cy="${cy}" r="5" fill="var(--mag)"/>`).join('')).join('')}<circle cx="465" cy="155" r="17" fill="none" stroke="var(--amber)" stroke-dasharray="3 3"/>${text(500,188,'noise\nflips it',{size:9,color:AM})}${text(420,210,'16-QAM · 4 bits/symbol',{size:11,color:MG})}
+      ${arrow(170,110,330,110,'')}${text(250,92,'more bits per symbol',{size:10,color:AM})}${text(250,128,'≈ +3 dB SNR per step',{size:10,color:AM})}${text(250,20,'I (in-phase) across · Q (quadrature) up',{size:10,color:DIM})}`,'QPSK and 16-QAM constellations')},
+   {cap:"An OFDM transmitter: bits become QAM symbols, which are spread over hundreds of slow, orthogonal subcarriers; a cyclic prefix absorbs multipath echoes. Wi-Fi, LTE and 5G NR all use this pipeline.",
+    svg:flow([{t:'bits'},{t:'QAM\nsymbols'},{t:'N subcarriers\n(IFFT)',stroke:CY},{t:'cyclic prefix\nvs multipath',stroke:AM},{t:'RF carrier\n20 MHz'}],{label:'OFDM transmitter pipeline'})}];
+
+  I.p42m3=[{cap:"The half-wave dipole: two quarter-wave legs fed at the center. Current peaks at the feedpoint, voltage at the ends; the total length is 468/f(MHz) feet — 38.5 inches on 2 m — and the feedpoint looks like about 73 Ω.",
+    svg:svg(560,230,`<path d="M40 120 Q280 20 520 120" fill="none" stroke="var(--lime)" stroke-width="1.3" stroke-dasharray="5 4"/>${text(280,52,'current (I) — maximum at the center',{size:10,color:LM})}
+      ${line(40,120,275,120,{sw:3})}${line(285,120,520,120,{sw:3})}${box(30,110,10,20,'',{stroke:DIM,rx:2})}${box(520,110,10,20,'',{stroke:DIM,rx:2})}
+      ${text(40,97,'V max',{size:9,color:AM})}${text(520,97,'V max',{size:9,color:AM})}
+      ${line(275,120,275,138)}${line(285,120,285,138)}${box(240,138,80,26,'50 Ω coax',{size:10,stroke:CY})}${line(280,164,280,185)}${text(280,196,'to the radio',{size:9,color:DIM})}
+      ${line(40,170,275,170,{stroke:DIM})}${line(40,165,40,175,{stroke:DIM})}${line(275,165,275,175,{stroke:DIM})}${text(157,183,'leg = 234/f ft = 19.2 in @ 146 MHz',{size:10})}
+      ${text(400,160,'feedpoint ≈ 73 Ω\n2.15 dBi · figure-eight',{size:10,color:DIM})}
+      ${text(280,218,'total = 468/f ft = 38.5 in @ 146 MHz  ·  cut 4% long, trim to resonance',{size:10,color:CY})}`,'Half-wave dipole with current and voltage distribution')},
+   {cap:"What a mismatch and a lossy line do to 5 W: the coax eats 5.3 dB before the antenna, then an SWR of 2:1 reflects 11% of what is left. Fix the cable first — it is the cheapest decibel.",
+    svg:svg(560,200,`${box(20,70,110,60,'transceiver\n5 W = 37 dBm',{stroke:CY,size:10})}${line(130,100,400,100,{sw:3})}${text(265,84,'50 ft RG-58 @ 446 MHz: −5.3 dB',{size:10,color:AM})}
+      ${box(400,60,140,80,'antenna\nZ = 100 Ω on 50 Ω\nSWR 2:1',{stroke:MG,size:10})}${arrow(398,122,135,122,'11% reflected')}
+      ${text(265,160,'forward power at the antenna: 37 − 5.3 = 31.7 dBm = 1.5 W',{size:10})}${text(265,180,'LMR-400 instead: −1.3 dB → 3.7 W reaches the antenna',{size:10,color:LM})}`,'Feedline loss and SWR reflection on a 70 cm run')},
+   {cap:"A Friis link budget read top to bottom: add the transmitter and both antenna gains, subtract cable loss and free-space path loss, compare with sensitivity. The 21 dB margin is what survives rain, aging and a bad day.",
+    svg:stack([{t:'transmitter +20 dBm',stroke:CY},{t:'+24 dBi dish (transmit side)'},{t:'+24 dBi dish (receive side)'},{t:'−2 dB jumper cables',stroke:AM},{t:'−117.2 dB FSPL · 3 km · 5.8 GHz',stroke:MG},{t:'= −51.2 dBm received',stroke:LM,bold:true},{t:'sensitivity −72 dBm → 21 dB fade margin',stroke:DIM}],{w:380,label:'Friis link budget for a 3 km point-to-point link'})}];
+
+  I.p42m4=[{cap:"The radio horizon: refraction lets VHF see about 15% past the visual horizon, so d(km) ≈ 4.12 √h(m). A handheld at 1.8 m sees 5.5 km; a repeater antenna 300 m up sees 71 km; they talk because 5.5 + 71 exceeds the 60–70 km between them.",
+    svg:svg(560,230,`${text(280,22,'radio horizon  d(km) ≈ 4.12 √h(m)',{bold:true,color:CY})}<path d="M20 210 Q280 90 540 210" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      ${line(124,172,124,157,{stroke:CY,sw:2})}${line(436,172,436,112,{stroke:MG,sw:2})}${box(430,104,12,8,'',{stroke:MG,rx:1})}
+      ${line(124,157,254,151,{stroke:CY,dash:true})}${line(436,112,254,151,{stroke:MG,dash:true})}<circle cx="254" cy="151" r="3" fill="var(--amber)"/>
+      ${text(70,140,'handheld 1.8 m\n→ 5.5 km',{size:10,color:CY})}${text(495,100,'repeater 300 m\n→ 71 km',{size:10,color:MG})}${text(254,135,'horizons meet',{size:9,color:AM})}
+      ${text(280,222,'5.5 + 71 = 77 km of usable path — height, not power, is the lever',{size:10,color:DIM})}`,'Radio horizon geometry for a handheld and a repeater')},
+   {cap:"Ionospheric skip: the sun ionizes the D, E and F layers. HF below the maximum usable frequency refracts off F2 and lands 1,000–4,000 km away; the D layer absorbs low bands by day and vanishes at night; between ground-wave range and the first landing lies the skip zone.",
+    svg:svg(560,230,`${line(20,200,540,200,{sw:1.6})}${line(20,60,540,60,{dash:true,stroke:MG})}${text(470,50,'F2 · 200–400 km · refracts',{size:9,color:MG})}
+      ${line(20,95,540,95,{dash:true,stroke:AM})}${text(500,86,'E · ~100 km',{size:9,color:AM})}${line(20,125,540,125,{dash:true,stroke:DIM})}${text(470,116,'D · absorbs low HF by day',{size:9,color:DIM})}
+      <path d="M60 200 L250 60 L440 200" fill="none" stroke="var(--cyan)" stroke-width="1.6" marker-end="url(#ah)"/>${line(250,60,330,15,{dash:true,stroke:DIM})}${text(330,10,'above MUF → escapes',{size:9,color:DIM,anchor:'start'})}
+      ${text(60,214,'TX',{size:10,color:CY})}${text(440,214,'RX · 1,000–4,000 km',{size:10,color:CY})}${line(110,190,390,190,{dash:true,stroke:AM})}${text(250,180,'skip zone — nothing heard here',{size:9,color:AM})}`,'Ionospheric layers and a single-hop skip')},
+   {cap:"A repeater pair: your handheld transmits on the input (146.340 MHz with a CTCSS tone) and listens on the output (146.940 MHz); the repeater does the reverse at once, so the offset is −600 kHz on this 2 m machine (±5 MHz on 70 cm).",
+    svg:svg(560,200,`${box(30,60,140,70,'your handheld\nTX 146.340 + tone\nRX 146.940',{stroke:CY,size:10})}${box(390,40,150,90,'repeater on the tower\nRX 146.340 (input)\nTX 146.940 (output)\nduplexer separates them',{stroke:MG,size:9})}
+      ${arrow(170,80,390,70,'146.340 MHz · CTCSS 103.5 Hz')}${arrow(390,110,170,118,'146.940 MHz output')}
+      ${text(280,165,'offset = input − output = −600 kHz (2 m)  ·  ±5 MHz (70 cm)',{size:10,color:AM})}${text(280,185,'no repeater in range? simplex on 146.520 MHz',{size:9,color:DIM})}`,'Repeater input, output, offset and access tone')}];
+
+  I.p42m5=[{cap:"The SDR signal chain. Everything to the left of the USB cable is a few chips that move the wave to numbers; everything to the right is software you can read and change.",
+    svg:flow([{t:'antenna'},{t:'filter / LNA'},{t:'tuner\nmixer + LO',stroke:CY},{t:'ADC → I/Q\n8–14 bits',stroke:CY},{t:'USB'},{t:'DSP in software\nfilter · demod',stroke:MG},{t:'audio / data'}],{bw:96,gap:40,label:'Software-defined radio signal chain'})},
+   {cap:"Why an RTL-SDR at 2.4 MSPS shows a 2.4 MHz waterfall: real sampling captures only half the sample rate, but complex I/Q samples carry phase, so negative frequencies are meaningful and the captured bandwidth equals the sample rate.",
+    svg:compare({t:'REAL SAMPLING',draw:x=>line(x+30,120,x+230,120)+box(x+30,80,100,40,'usable: 0 → fs/2',{stroke:CY,size:10})+text(x+130,140,'fs samples/s → fs/2 bandwidth',{size:10})+text(x+130,160,'one ADC, no phase',{size:9,color:DIM})},
+      {t:'I/Q (COMPLEX) SAMPLING',draw:x=>line(x+30,120,x+230,120)+box(x+30,80,200,40,'usable: −fs/2 → +fs/2 around the LO',{stroke:MG,size:10})+text(x+130,140,'fs complex samples → fs bandwidth',{size:10})+text(x+130,160,'RTL-SDR 2.4 MSPS → 2.4 MHz waterfall',{size:9,color:DIM})},{h:185,label:'Real versus I/Q sampling bandwidth'})},
+   {cap:"What US law lets an SDR owner receive. The test is ECPA's 'readily accessible to the general public' plus § 605's ban on divulging; broadcasts, aviation, marine, satellites and hams pass, pager data, cellular and anything encrypted do not.",
+    svg:compare({t:'LAWFUL TO RECEIVE',draw:x=>['ADS-B 1,090 MHz · AIS','Meteor-M 137 MHz weather images','aviation · marine · NOAA weather','amateur · unencrypted P25','your own ISM sensors (rtl_433)'].map((l,i)=>text(x+130,50+i*25,l,{size:10,color:LM})).join('')},
+      {t:'NOT LAWFUL',draw:x=>['pager data (common carrier)','cellular — any generation','anything encrypted','divulging private comms (§ 605)','retransmit · jam · spoof (§ 333)'].map((l,i)=>text(x+130,50+i*25,l,{size:10,color:AM})).join('')},{h:185,label:'Lawful and unlawful SDR reception in the US'})}];
+
+  I.p42m6=[{cap:"The licensing pipeline with its numbers: a 409-question pool, a 35-question exam with 26 to pass, the FRN before the session, the $35 FCC fee within 10 days of the email, then a call sign in ULS and a 10-year term.",
+    svg:flow([{t:'study\nHamStudy pool'},{t:'FRN via\nFCC CORES',stroke:AM},{t:'VE session\n35 Q · 26 pass',stroke:CY},{t:'VEC files\nwith FCC'},{t:'pay $35\nwithin 10 days',stroke:AM},{t:'ULS grant\ncall sign',stroke:LM},{t:'on the air\n10-year term',stroke:LM}],{bw:96,gap:40,label:'From study to call sign'})},
+   {cap:"Meshtastic sits on both sides of one legal line. Default mode is a Part 15 device — encrypted, low power, no license. Licensed amateur mode broadcasts your call sign, disables encryption and allows more power under Part 97. A node is one or the other.",
+    svg:compare({t:'PART 15 (default mode)',draw:x=>['no license needed','certified module ≈ 20–22 dBm','AES encryption ON','anyone may run it','LongFast ≈ 1 kbps · 1–10 km/hop'].map((l,i)=>text(x+130,50+i*25,l,{size:10})).join('')},
+      {t:'PART 97 (licensed mode)',draw:x=>['amateur license required','call sign every 10 minutes','encryption OFF (97.113)','more power & antenna gain','one node = one mode, never both'].map((l,i)=>text(x+130,50+i*25,l,{size:10,color:AM})).join('')},{h:185,label:'Meshtastic under Part 15 versus Part 97'})},
+   {cap:"Three classes, three exams, cumulative privileges: Technician owns everything above 30 MHz plus 10 m phone and data and three CW segments; General adds most of HF; Extra adds the last exclusive slices.",
+    svg:pyramid([{t:'Extra — all bands, all modes'},{t:'General — most of HF added'},{t:'Technician — above 30 MHz + 10 m + CW'}],{label:'License classes and privileges'})}];
+
+  I.p42m7=[{cap:"The RF attack surface as a defender's table: each threat has a signature you can see in a spectrum display or a log, and an engineering defense you can specify. Jamming is illegal for everyone; all testing is on your own devices or under written authorization.",
+    svg:svg(560,240,`${text(100,18,'THREAT',{bold:true,color:CY})}${text(280,18,'DETECT',{bold:true,color:AM})}${text(460,18,'DEFEND',{bold:true,color:LM})}
+      ${[['replay','duplicate counters / frames','rolling codes · nonces · auth'],['relay (keyless entry)','handshake, no owner nearby','UWB distance bounding'],['jamming (illegal, § 333)','noise floor +20–40 dB hump','agility · wired fallback'],['spoofing (GNSS, Wi-Fi)','constellations disagree · rogue BSSID','OSNMA · 802.1X · PMF']].map((r,i)=>box(15,30+i*50,170,42,r[0],{size:10,stroke:CY})+box(195,30+i*50,170,42,r[1],{size:9,stroke:AM})+box(375,30+i*50,170,42,r[2],{size:9,stroke:LM})).join('')}`,'RF threats with detection signals and defenses')},
+   {cap:"The RF site-survey cycle (the CWNA process): requirements, a predictive model, an AP-on-a-stick check, passive and active surveys, spectrum analysis for non-Wi-Fi interferers, then validation and documentation.",
+    svg:cycle(['requirements',{t:'predictive\nmodel',stroke:CY},'AP-on-a-stick',{t:'passive\nsurvey'},{t:'active\nsurvey'},{t:'spectrum\nanalysis',stroke:AM},{t:'validate &\ndocument',stroke:LM}],{label:'RF site survey cycle'})},
+   {cap:"How the credentials stack into a wireless career: field experience and device knowledge underneath, the amateur license as the RF-literacy proof, CWNA and its successors as the professional layer, and the roles they open on top.",
+    svg:stack([{t:'wireless security · spectrum analyst · WLAN engineer',stroke:MG},{t:'CWNA-110 → CWSP / CWDP · OSWP (authorized labs)',stroke:AM},{t:'FCC amateur license (this domain) · GROL',stroke:CY},{t:'fiber field work (Domain 24) · devices (Domain 10)',stroke:LM}],{w:430,label:'How the credentials stack'})}];
+
+  window.ILLUS=Object.assign(window.ILLUS||{},I);
+})();

@@ -1,0 +1,40 @@
+/* Lab guides — Domain 8: ethical penetration testing. All exercises are scoped to owned or purpose-built environments. */
+window.LABX=window.LABX||{};
+Object.assign(window.LABX,{
+  "p8lab1":{
+    time:"90–120 min",
+    setup:["Use a machine you own and a local hypervisor such as VirtualBox or UTM. Create an isolated host-only network; do not bridge intentionally vulnerable machines to your home or workplace LAN.","Install one intentionally vulnerable training VM from its official project source, verify its published checksum where available, and take a clean snapshot before starting.","Create a lab notebook with date, target name, IP address, network mode, allowed actions and stop conditions. No public IPs or third-party systems are in scope."],
+    checkpoints:["The vulnerable VM has no route to the public internet and is not reachable from devices outside the isolated host-only network.","You can restore the clean snapshot and explain what the snapshot does and does not protect.","Your notebook identifies the exact target, allowed training activities, excluded targets and the process for stopping the exercise."],
+    hints:["Use host-only networking rather than bridged networking; verify the guest's interfaces and routes before starting any lab activity.","A VM snapshot is a recovery point, not a complete security boundary. Keep the host patched and avoid shared folders, clipboard and credentials unless the exercise requires them."],
+    trouble:[["The guest receives a normal home-network address","The adapter is probably bridged or attached to the wrong virtual network","Power off the guest, change the adapter to host-only/internal networking, then verify the address and routes before proceeding."],["You cannot restore the initial state","The snapshot was not taken or the wrong VM is selected","Stop the lab and rebuild from the verified original image; take a clearly named clean snapshot before further work."]],
+    challenge:"Write a one-page lab runbook for a second person: purpose, scope, network diagram, safe-start checklist, reset procedure and evidence-retention plan. Ask them to follow it without verbal help.",
+    reflect:["Why does owning a laptop not automatically authorize tests against every device reachable from it?","Which safety control would you rely on if a virtual machine unexpectedly attempted to reach the public internet, and how would you verify it?"]
+  },
+  "p8lab2":{
+    time:"60–90 min",
+    setup:["Use the official PortSwigger Web Security Academy learning environment and choose a beginner lab explicitly designed for training. Read the lab's instructions and permitted actions first.","Use a separate browser profile with no personal sessions, passwords or extensions. Work only on the academy's provided target and stop when the lab says it is solved.","Keep notes on the hypothesis, request/response evidence, impact and remediation. Do not transfer payloads to unrelated websites."],
+    checkpoints:["You can state the exact target authorized by the lab and identify the action that demonstrated the issue.","Your notes include a concise root cause and a defensive remediation, not only the steps that triggered the behavior.","You can restore the lab state and explain why the same test must not be applied to an unlisted target."],
+    hints:["Start with the lab's learning objective and observe normal application behavior before changing one variable at a time.","Separate evidence from interpretation: capture the relevant request/response and explain what it proves, then state what it does not prove."],
+    trouble:[["The behavior does not match the tutorial","The lab instance or application state may differ","Reset the official lab, reread the objective and reproduce the baseline before changing one variable."],["You cannot explain the root cause","The exercise may have been solved by trial and error","Write down the trust boundary and the missing validation or authorization check; propose a fix at that boundary."]],
+    challenge:"Write a responsible finding for a developer who has never seen the lab: summary, affected component, minimal evidence, impact, remediation, and a safe regression test. Have a peer score it against those six criteria.",
+    reflect:["What is the difference between demonstrating impact and collecting unnecessary data?","How would you validate that a proposed fix prevents the underlying class of bug rather than only the exact example?"]
+  },
+  "p8lab3":{
+    time:"2–3 h",
+    setup:["Choose a beginner capture-the-flag challenge on a platform whose rules explicitly authorize the activity; use only the supplied challenge environment.","Prepare a report template with title, scope, summary, evidence, impact, severity rationale, remediation and retest status.","Do not target platform infrastructure, other players or systems not named by the challenge."],
+    checkpoints:["The report names the challenge target and clearly labels the environment as a sanctioned exercise.","Every conclusion is supported by reproducible evidence collected within the rules.","The remediation explains the root cause and includes a validation idea; the report avoids secrets unrelated to the challenge."],
+    hints:["Keep a timestamped log of observations and hypotheses. If you try a path that fails, record what it ruled out.","A good report should let a maintainer understand the issue without needing to repeat the whole challenge journey."],
+    trouble:[["The challenge becomes inaccessible","The instance may have expired or reset","Use the platform's official reset/restart feature and repeat only against the new assigned instance."],["The report reads like a walkthrough","It may focus on actions rather than the defect","Rewrite around the root cause, the minimum proof, likely impact and the fix a maintainer can implement."]],
+    challenge:"Create two versions of the same report: a five-sentence executive summary and a technical appendix. Ensure both agree on severity, evidence and recommended fix.",
+    reflect:["Which details belong in an executive summary and which belong in a technical appendix?","What uncertainty should you disclose if the lab does not allow you to measure real-world impact?"]
+  },
+  "p8lab4":{
+    time:"60–90 min",
+    setup:["Use the fictional client scenario in the lesson or create a fictional small business. This is a planning exercise; do not contact or test a real organization.","Draft a rules-of-engagement document with assets, exclusions, dates, allowed methods, test accounts, rate limits, emergency contact, stop conditions and data handling.","Have a second learner act as the client and ask them to identify ambiguities before approving the fictional plan."],
+    checkpoints:["No target, method or time window is implied rather than explicitly defined.","The plan includes an emergency stop path and instructions for unexpected sensitive data or service instability.","The client can tell what the final deliverables are and how retesting will be requested."],
+    hints:["Write the exclusions as carefully as the inclusions. Explicitly state that discoveries outside scope are not permission to continue.","Use plain language for the client and a precise technical appendix for testers."],
+    trouble:[["The scope says 'all company systems'","That phrase is too broad to safely execute","Replace it with an inventory of exact hostnames, IP ranges, applications, environments and exclusions approved by the fictional client."],["There is no stop condition","The plan assumes every test proceeds normally","Add triggers such as unexpected outage, sensitive-data exposure, scope ambiguity or client request, plus a named contact and safe pause procedure."]],
+    challenge:"Create a pre-engagement checklist and a one-page sign-off form that another tester could use without asking you what the rules mean.",
+    reflect:["Which ambiguity in your plan could cause the largest operational or legal risk?","How should a tester handle discovering a vulnerable third-party service while testing an in-scope application?"]
+  }
+});

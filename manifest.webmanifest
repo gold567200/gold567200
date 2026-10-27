@@ -1,0 +1,29 @@
+{
+ "name": "Genius Protocol",
+ "short_name": "Genius",
+ "description": "Your computer-science boot camp: lectures, labs, quizzes, flashcards, certs and ADA, your AI tutor.",
+ "start_url": ".",
+ "scope": ".",
+ "display": "standalone",
+ "orientation": "portrait",
+ "background_color": "#060a14",
+ "theme_color": "#060a14",
+ "icons": [
+  {
+   "src": "icon.svg",
+   "sizes": "any",
+   "type": "image/svg+xml",
+   "purpose": "any"
+  },
+  {
+   "src": "icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  }
+ ]
+}
