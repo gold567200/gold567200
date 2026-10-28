@@ -2249,16 +2249,20 @@ command  : chmod ${octal} file</div>
     c.querySelectorAll('code').forEach(cd=>cd.replaceWith(' '+cd.textContent+' '));
     return c.textContent;
   }
+  const HEAD_LEADS=['Next: ','Now let\'s turn to ','Moving on: ','Now, '];
+  const ORDINALS=['First','Second','Third','Fourth','Fifth','Sixth','Seventh','Eighth','Ninth','Tenth'];
+  const CODE_LINES=['Take a look at the code example on screen.','There\'s a short code example on screen; have a look at it when we finish.','Have a look at the code on screen for this part.'];
   function lectureBlocks(){
+    let heads=0, codes=0;
     const blocks=[]; const add=(el2,text,pauseBefore)=>{ text=(text||'').replace(/\s+/g,' ').trim(); if(text) blocks.push({el:el2,text,pause:pauseBefore||0}); };
     const walk=(root)=>{ if(!root) return; root.querySelectorAll(':scope > *').forEach(n=>{
       const tag=n.tagName.toLowerCase();
-      if(tag==='h4') add(n,speechText(n)+'.',900);
-      else if(tag==='p') add(n,speechText(n),350);
-      else if(tag==='ul'||tag==='ol'){ n.querySelectorAll(':scope > li').forEach((li,i)=>add(li,(tag==='ol'?`Step ${i+1}. `:'')+speechText(li),250)); }
-      else if(tag==='pre') add(n,'Here is a short code example — read it on screen; I will continue.',400);
-      else if(tag==='table'){ const rows=[...n.querySelectorAll('tr')]; if(rows.length){ add(n,'There is a table here. The key rows are:',500);
-          rows.slice(0,8).forEach(tr=>{ const cells=[...tr.querySelectorAll('th,td')].map(c=>c.textContent.trim()).filter(Boolean); if(cells.length) add(tr,cells.join(', ')+'.',200); }); if(rows.length>8) add(n,'and more rows on screen.',200); } }
+      if(tag==='h4'){ const lead=HEAD_LEADS[(heads++)%HEAD_LEADS.length]; add(n,lead+speechText(n).trim().replace(/[.:]+$/,'')+'.',1000); }
+      else if(tag==='p') add(n,speechText(n),450);
+      else if(tag==='ul'||tag==='ol'){ const items=[...n.querySelectorAll(':scope > li')]; items.forEach((li,i)=>add(li,(tag==='ol'?(items.length>2&&i===items.length-1&&i>=3?'Finally, ':(ORDINALS[i]?ORDINALS[i]+', ':'Step '+(i+1)+', ')):'')+speechText(li),300)); }
+      else if(tag==='pre') add(n,CODE_LINES[(codes++)%CODE_LINES.length],450);
+      else if(tag==='table'){ const lines=tableSpeech(n); const trs=[...n.querySelectorAll('tr')].filter(tr=>tr.querySelector('td'));
+          if(lines.length){ add(n,'Here\'s a quick table.',500); lines.slice(0,8).forEach((t,i)=>add(trs[i]||n,t,250)); if(lines.length>8) add(n,'The rest of the rows are on screen.',250); } }
       else if(tag==='div'||tag==='section') walk(n);
       else add(n,speechText(n),300); }); };
     const sb=document.querySelector('.simplebox'); if(sb){ blocks.push({el:sb,text:'First, the simple version.',pause:0}); sb.querySelectorAll('p:not(.eyebrow)').forEach(p=>add(p,speechText(p),350)); blocks.push({el:sb,text:'Now the full lecture.',pause:700}); }
@@ -2266,15 +2270,38 @@ command  : chmod ${octal} file</div>
     const ex=el("lecture-ex"); if(ex){ blocks.push({el:ex,text:"Now, a worked example.",pause:900}); walk(ex); }
     return blocks;
   }
+  // Turns written lecture text into what a lecturer would actually say: symbols, units, abbreviations and paths read naturally.
   function cleanForSpeech(t){
-    return t.replace(/&mdash;|—/g,', ')
+    return String(t||'')
+      .replace(/https?:\/\/[^\s)\]]+/g,'the link on screen')
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2B50}\u{2705}]/gu,'')
+      .replace(/\*\*|__|`/g,'').replace(/\[\d+\]/g,'')
+      .replace(/\be\.g\.,?/gi,'for example,').replace(/\bi\.e\.,?/gi,'that is,').replace(/\betc\./gi,'and so on').replace(/\bvs\.?(?=\s)/gi,'versus').replace(/\bw\/(?=\s)/g,'with ')
+      .replace(/\bC\+\+/g,'C plus plus').replace(/\bC#/g,'C sharp').replace(/\bF#/g,'F sharp').replace(/(^|\s)\.NET\b/g,'$1dot net')
+      .replace(/\s&\s/g,' and ').replace(/&mdash;|—/g,', ').replace(/\s–\s/g,', ')
       .replace(/\bGB\/s\b/g,'gigabytes per second').replace(/\bMB\/s\b/g,'megabytes per second').replace(/\bTB\/s\b/g,'terabytes per second').replace(/\bKB\/s\b/g,'kilobytes per second')
       .replace(/\bGb\/s\b/g,'gigabits per second').replace(/\bMb\/s\b/g,'megabits per second').replace(/\bkm\/s\b/g,'kilometers per second').replace(/\bMT\/s\b/g,'megatransfers per second')
       .replace(/\bGiB\b/g,'gibibytes').replace(/\bKiB\b/g,'kibibytes').replace(/\bMiB\b/g,'mebibytes').replace(/\bTiB\b/g,'tebibytes')
       .replace(/\bns\b/g,'nanoseconds').replace(/\bµs\b/g,'microseconds').replace(/\bms\b/g,'milliseconds').replace(/\bRTT\b/g,'round-trip time')
-      .replace(/\b(TCP|UDP)\/IP\b/g,'$1 I P').replace(/\bI\/O\b/g,'I O').replace(/\s*\/\s*/g,' or ')
-      .replace(/0x([0-9A-Fa-f]+)/g,'hex $1').replace(/\^/g,' to the power of ').replace(/≈|~/g,'about ').replace(/→/g,' to ').replace(/·/g,', ');
+      .replace(/\b(TCP|UDP)\/IP\b/g,'$1 I P').replace(/\bI\/O\b/g,'I O')
+      .replace(/(^|[\s(])((?:\/[\w.\-~]+)+\/?)/g,(m,a,path)=>a+path.split('/').filter(Boolean).join(' slash ').replace(/^/,'slash '))   // /etc/hosts → slash etc slash hosts
+      .replace(/(\d)\/(\d)/g,'$1 slash $2').replace(/(^|\s)\/(\d+)/g,'$1slash $2')                                                     // 10.0.0.0/8, /24
+      .replace(/\band\/or\b/g,'and or').replace(/\s*\/\s*/g,' or ')
+      .replace(/->|=>/g,' to ').replace(/≥|>=/g,' greater than or equal to ').replace(/≤|<=/g,' less than or equal to ').replace(/≠|!=/g,' not equal to ').replace(/×/g,' times ')
+      .replace(/0x([0-9A-Fa-f]+)/g,'hex $1').replace(/\^/g,' to the power of ').replace(/≈|~/g,'about ').replace(/→/g,' to ').replace(/·/g,', ')
+      .replace(/\s+([,.;:!?])/g,'$1').replace(/\s+/g,' ').trim();
   }
+  // A table read the way a person would explain it: each row as "first cell: column, value; column, value".
+  function tableSpeech(tbl){
+    const rows=[...tbl.querySelectorAll('tr')].map(tr=>[...tr.children].map(c=>speechText(c).replace(/\s+/g,' ').trim()));
+    if(!rows.length) return [];
+    const head=tbl.querySelector('th')&&rows[0].length>1?rows[0]:null; const body=head?rows.slice(1):rows;
+    return body.filter(r=>r.some(Boolean)).map(r=>{
+      if(r.length<2) return r[0]+'.';
+      if(!head||r.length===2) return r[0]+': '+r.slice(1).filter(Boolean).join(', ')+'.';
+      return r[0]+': '+r.slice(1).map((c,i)=>c?((head[i+1]?head[i+1]+', ':'')+c):'').filter(Boolean).join('; ')+'.'; });
+  }
+
   // iPhone and iPad only let a page speak if the first utterance starts inside the tap itself.
   // Call this synchronously from a click handler, before any await or timer.
   function unlockSpeech(){ const pv=!!(window.GP_VOICE&&GP_VOICE.unlock()); if(!('speechSynthesis' in window)) return pv; if(pv) return true; try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(' '); u.volume=0; speechSynthesis.speak(u); if(speechSynthesis.paused) speechSynthesis.resume(); return true; }catch(e){ return false; } }
@@ -2297,8 +2324,8 @@ command  : chmod ${octal} file</div>
       const b=readQueue[readIdx];
       readTimer=setTimeout(()=>{ if(!speaking) return;
         curBlock=b.el; curBlock.classList.add('reading'); try{ curBlock.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){}
-        if(pro){ const nb=readQueue[readIdx+1]; const myRun=readRun;
-          GP_VOICE.say(cleanForSpeech(b.text),{title:(document.querySelector('#deck h1')||{}).textContent||'Lecture',prefetchNext:nb?cleanForSpeech(nb.text):''})
+        if(pro){ const nb=readQueue[readIdx+1], pb=readQueue[readIdx-1]; const myRun=readRun;
+          GP_VOICE.say(cleanForSpeech(b.text),{title:(document.querySelector('#deck h1')||{}).textContent||'Lecture',prevText:pb?cleanForSpeech(pb.text):'',prefetchNext:nb?cleanForSpeech(nb.text):''})
             .then(()=>{ if(!speaking||myRun!==readRun) return; readIdx++; speakNext(); })
             .catch(e=>{ if(!speaking||myRun!==readRun) return; GP_VOICE.suspend(); toast(GP_VOICE.explain(e)+' Switching to the device voice.'); startReading(readIdx); });
           return; }
@@ -2341,7 +2368,7 @@ command  : chmod ${octal} file</div>
 
   // ---------- boot ----------
   const API={ get S(){return S;}, save, addXP, toast, set, esc, el, phases, phase, allModules, allCards, dueCards, moduleDone, phaseUnlocked, phaseProgress, renderHUD, popin, logMiss, shuffle, deriveTerms, CERTS, LISTEN, GLOSSARY, SIMS, QUOTES, XP, certFor, certAge, ageWords, certReviewOpen, dayKey, unlockSpeech, normalizeState, nextUp, level,
-    getSample, ADA_SYS, bestVoice, cleanForSpeech, stopRead, voiceList, fillVoiceSelect, completeModule, moduleView };
+    getSample, ADA_SYS, bestVoice, cleanForSpeech, tableSpeech, stopRead, voiceList, fillVoiceSelect, completeModule, moduleView };
   window.GP_API=API;
   function boot(){
     renderHUD();

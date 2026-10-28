@@ -18,11 +18,16 @@
     ['pFZP5JQG7iQjIQuC4Bku','Lily','British woman · warm'],
     ['XrExE9yKIg1WjnnlVkGX','Matilda','American woman · friendly']];
   const MODELS=[
-    ['eleven_multilingual_v2','Multilingual v2 — lifelike and steady over long lectures (recommended)'],
-    ['eleven_v4','Eleven v4 — newest and most expressive'],
+    ['eleven_v4','Eleven v4 — most lifelike and expressive (recommended)'],
+    ['eleven_multilingual_v2','Multilingual v2 — very steady over long lectures'],
     ['eleven_flash_v2_5','Flash v2.5 — fastest, about half the credits']];
+  const FALLBACK_MODEL='eleven_multilingual_v2';
   const CONTEXT_OK=/^(eleven_multilingual_v2|eleven_flash_v2_5)$/;      // models documented with previous_text / next_text
-  const SETTINGS={ stability:0.55, similarity_boost:0.75, style:0, use_speaker_boost:true }; const SET_VER='s1';
+  // Per-model settings. ElevenLabs: v4 takes only stability and similarity (no style, speed or speaker boost);
+  // for v2 a little below the 0.5 default stability sounds more like natural speech, and style stays 0.
+  function settingsFor(model){ return /^eleven_v[34]/.test(model) ? { stability:0.5, similarity_boost:0.8 }
+    : { stability:0.42, similarity_boost:0.8, style:0, use_speaker_boost:true }; }
+  const SET_VER='s2';
   const SAMPLE="Good morning. Today we'll follow a single packet across the internet, and you'll see it's far more elegant than it sounds.";
   const CACHE_CAP=250*1024*1024;
   const $=id=>document.getElementById(id);
@@ -36,6 +41,7 @@
   function prefs(){ let p={}; try{ p=JSON.parse(localStorage.getItem(PREF_STORE)||'{}')||{}; }catch(e){}
     if(typeof p.voice!=='string'||!/^[A-Za-z0-9]{10,40}$/.test(p.voice)) p.voice=VOICES[0][0];
     if(!MODELS.some(m=>m[0]===p.model)) p.model=MODELS[0][0];
+    if(p.mv!==2){ if(!p.modelPicked) p.model=MODELS[0][0]; p.mv=2; }   // v67: Eleven v4 is the new default unless one was chosen
     if(typeof p.on!=='boolean') p.on=true;
     if(typeof p.name!=='string'||!p.name) p.name=(VOICES.find(v=>v[0]===p.voice)||[0,'Custom voice'])[1];
     return p; }
@@ -61,6 +67,7 @@
     if(/quota|credit|exceed|limit reached|insufficient/i.test(both)) return mkErr('quota',msg||'Out of ElevenLabs credits.',s);
     if(/permission/i.test(both)||s===403) return mkErr('permission',msg||'This key is not allowed to make speech.',s);
     if(s===401) return mkErr('bad_key',msg||'The key was not accepted.',s);
+    if(/model/i.test(both)&&!/voice_not_found/i.test(st)) return mkErr('model',msg||'That voice model was not accepted.',s);
     if(s===404||/voice/i.test(st)) return mkErr('voice',msg||'That voice was not found.',s);
     if(s===429) return mkErr('busy',msg||'Too many requests at once.',s);
     return mkErr('api_error',msg||('Request failed ('+s+').'),s);
@@ -70,6 +77,7 @@
     if(c==='bad_key') return 'ElevenLabs refused the API key.';
     if(c==='permission') return 'This ElevenLabs key isn\'t allowed to use Text to Speech. Edit the key\'s permissions on ElevenLabs.';
     if(c==='quota') return 'Your ElevenLabs credits (or this key\'s credit limit) have run out.';
+    if(c==='model') return 'ElevenLabs refused the voice model. Pick another in Professor voice.';
     if(c==='voice') return 'ElevenLabs couldn\'t find that voice. Pick another in Professor voice.';
     if(c==='busy') return 'ElevenLabs is busy or you\'ve hit your plan\'s limit on requests at once.';
     if(c==='network') return 'Couldn\'t reach ElevenLabs. Check the internet connection.';
@@ -88,9 +96,9 @@
     const t=String(text||'').replace(/\s+/g,' ').trim(); if(!t) return [];
     const sents=t.match(/[^.!?;:]+[.!?;:]+["')\]]*\s*|[^.!?;:]+$/g)||[t];
     const out=[]; let buf='';
-    sents.forEach(s=>{ const cap=out.length?1100:260;               // a short first piece so speech starts quickly
+    sents.forEach(s=>{ const cap=out.length?1800:600;               // whole paragraphs in one piece (smoother delivery); the first stays modest so speech starts quickly
       if(buf&&(buf+s).length>cap){ out.push(buf.trim()); buf=''; }
-      while(s.length>1600){ out.push(s.slice(0,1600)); s=s.slice(1600); }
+      while(s.length>2400){ out.push(s.slice(0,2400)); s=s.slice(2400); }
       buf+=s; });
     if(buf.trim()) out.push(buf.trim());
     return out;
@@ -124,22 +132,29 @@
   async function fetchTTS(text,ctx,p){
     const key=readKey(); if(!key) throw mkErr('no_key');
     brake();
-    const body={ text, model_id:p.model, voice_settings:SETTINGS };
+    const body={ text, model_id:p.model, voice_settings:settingsFor(p.model) };
     if(CONTEXT_OK.test(p.model)){ if(ctx&&ctx.prev) body.previous_text=ctx.prev.slice(-300); if(ctx&&ctx.next) body.next_text=ctx.next.slice(0,300); }
     let res;
     try{ res=await fetch(ENDPOINT+encodeURIComponent(p.voice)+'?output_format='+FORMAT,{ method:'POST', headers:{ 'xi-api-key':key, 'content-type':'application/json', 'accept':'audio/mpeg' }, body:JSON.stringify(body) }); }
     catch(e){ throw mkErr('network','Network error: '+((e&&e.message)||e)); }
-    if(!res.ok) throw await httpErr(res);
+    if(!res.ok){ const e=await httpErr(res); if(e.code==='api_error'&&(e.status===400||e.status===422||/model/i.test(e.message))) e.code='model'; throw e; }
     const raw=await res.blob(); if(!raw||!raw.size) throw mkErr('playback','ElevenLabs returned no audio.');
     addUsage(text.length);
     return raw.type==='audio/mpeg'?raw:new Blob([raw],{type:'audio/mpeg'});
   }
   function clip(text,ctx){ const p=prefs(); const k=keyOf(p,text); if(mem.has(k)) return mem.get(k);
-    const pr=(async()=>{ const hit=await idbGet(k); if(hit&&hit.size) return hit; const b=await fetchTTS(text,ctx,p); idbPut(k,b); return b; })();
+    const pr=(async()=>{ const hit=await idbGet(k); if(hit&&hit.size) return hit;
+      let b; try{ b=await fetchTTS(text,ctx,p); }
+      catch(e){ if(!(e&&e.code==='model'&&p.model!==FALLBACK_MODEL)) throw e;
+        // The chosen model was refused (not on this plan, or its settings were rejected): use Multilingual v2 from now on.
+        setPrefs({model:FALLBACK_MODEL,modelNote:'Eleven v4 was refused ('+String(e.message||'').slice(0,120)+'), so Multilingual v2 is used.'});
+        const p2=prefs(); const k2=keyOf(p2,text); const hit2=await idbGet(k2); if(hit2&&hit2.size) return hit2;
+        b=await fetchTTS(text,ctx,p2); idbPut(k2,b); return b; }
+      idbPut(k,b); return b; })();
     mem.set(k,pr); pr.catch(()=>{ mem.delete(k); });
     while(mem.size>60) mem.delete(mem.keys().next().value);
     return pr; }
-  function prefetch(text){ try{ const parts=chunks(text); if(parts.length) clip(parts[0],{next:parts[1]||''}).catch(()=>{}); }catch(e){} }
+  function prefetch(text,prev){ try{ const parts=chunks(text); if(parts.length) clip(parts[0],{prev:prev||'',next:parts[1]||''}).catch(()=>{}); }catch(e){} }
 
   /* ---------- playback ---------- */
   let aud=null, gen=0, pendingResolve=null, endPlay=null, paused=false, resumeWait=null, silent=null;
@@ -169,11 +184,11 @@
       (async()=>{
         if(!parts.length) return finish();
         media(opts.title);
-        let nextP=clip(parts[0],{next:parts[1]||''}); nextP.catch(()=>{});
+        let nextP=clip(parts[0],{prev:opts.prevText||'',next:parts[1]||opts.prefetchNext||''}); nextP.catch(()=>{});
         for(let i=0;i<parts.length;i++){
           const blob=await nextP; if(my!==gen) return finish();
-          if(i+1<parts.length){ nextP=clip(parts[i+1],{prev:parts[i],next:parts[i+2]||''}); nextP.catch(()=>{}); }
-          else if(opts.prefetchNext) prefetch(opts.prefetchNext);
+          if(i+1<parts.length){ nextP=clip(parts[i+1],{prev:parts[i],next:parts[i+2]||opts.prefetchNext||''}); nextP.catch(()=>{}); }
+          else if(opts.prefetchNext) prefetch(opts.prefetchNext,parts[i]);
           await play(blob,my,()=>{ if(!started){ started=true; try{ opts.onstart&&opts.onstart(); }catch(e){} } });
           if(my!==gen) return finish();
         }
@@ -224,7 +239,7 @@
           <label for="gvcustom" style="display:block;margin-bottom:6px">Or use any voice from the ElevenLabs Voice Library: add it to <b>My Voices</b>, copy its voice ID, and paste it here</label>
           <div class="row"><input id="gvcustom" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Voice ID" value="${custom?esc(p.voice):''}" style="flex:1;min-width:180px"><button class="btn ghost sm" onclick="GP_VOICE_UI.custom()">Use this voice</button></div></div>
         <label for="gvmodel" style="display:block;margin:14px 0 6px">Voice model</label>
-        <select id="gvmodel" onchange="GP_VOICE_UI.model(this.value)" style="width:100%">${mopts}</select>
+        <select id="gvmodel" onchange="GP_VOICE_UI.model(this.value)" style="width:100%">${mopts}</select>${p.modelNote?`<p class="faint" style="font-size:13px;margin:6px 0 0;color:var(--amber)">${esc(p.modelNote)}</p>`:''}
         <p class="faint" style="font-size:13px;margin:8px 0 0">Speed follows the SPEED slider under each lecture.</p></div>
       <div class="holo" style="margin-top:12px"><p class="eyebrow">Usage on this device</p>
         <p style="margin:0">Characters sent to ElevenLabs: <b>${u.chars.toLocaleString()}</b> in ${u.calls.toLocaleString()} requests since ${esc(u.since)}. Replays of saved audio are free. Your real balance is on ElevenLabs' usage page.</p>
@@ -272,7 +287,7 @@
     pick:(id,name)=>{ setPrefs({voice:id,name}); if(A) A.toast('Voice: '+name); },
     custom:()=>{ const v=($('gvcustom')&&$('gvcustom').value||'').trim(); if(!/^[A-Za-z0-9]{10,40}$/.test(v)){ msg('A voice ID is a code of letters and numbers, about 20 characters long.',false); return; }
       setPrefs({voice:v,name:'Custom voice'}); document.querySelectorAll('input[name=gvv]').forEach(r=>r.checked=false); msg('Custom voice saved. Tap Test voice to hear it.',true); },
-    model:v=>{ if(MODELS.some(m=>m[0]===v)){ setPrefs({model:v}); if(A) A.toast('Voice model updated'); } },
+    model:v=>{ if(MODELS.some(m=>m[0]===v)){ setPrefs({model:v,modelPicked:true,modelNote:''}); if(A) A.toast('Voice model updated'); } },
     toggle:v=>{ setPrefs({on:!!v}); if(v) suspended=false; else stop(); if(A) A.toast(v?'Professor voice on':'Using device voices'); } };
   V.push({test:h=>h==='tool-voice', nav:'labs', render:(h,api)=>{ A=api; voiceView(); }});
   // Keep a reference to the engine API for rate() before the page is first opened.

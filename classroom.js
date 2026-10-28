@@ -39,8 +39,8 @@
   function showProg(){ const p=$('cprog'); if(p&&st.steps.length) p.textContent='Step '+Math.min(st.i+1,st.steps.length)+' of '+st.steps.length+(st.score.n?(' · '+st.score.ok+'/'+st.score.n+' correct'):''); }
   function htmlToSpeech(html){
     const d=document.createElement('div'); d.innerHTML=html||'';
-    d.querySelectorAll('pre').forEach(x=>{ x.replaceWith(document.createTextNode(' There is a command block here that you can read on screen later. ')); });
-    d.querySelectorAll('table').forEach(t=>{ const rows=[...t.querySelectorAll('tr')].map(r=>[...r.children].map(c=>c.textContent.trim()).filter(Boolean).join(', ')); t.replaceWith(document.createTextNode(' Here is a table, row by row: '+rows.join('. ')+'. ')); });
+    d.querySelectorAll('pre').forEach(x=>{ x.replaceWith(document.createTextNode(' There\'s a code example on screen; have a look at it later. ')); });
+    d.querySelectorAll('table').forEach(t=>{ const rows=(A&&A.tableSpeech)?A.tableSpeech(t):[...t.querySelectorAll('tr')].map(r=>[...r.children].map(c=>c.textContent.trim()).filter(Boolean).join(', ')+'.'); t.replaceWith(document.createTextNode(' Here\'s a quick table. '+rows.join(' ')+' ')); });
     d.querySelectorAll('li').forEach(li=>{ li.insertAdjacentText('afterend','. '); });
     d.querySelectorAll('sup').forEach(s=>{ s.replaceWith(document.createTextNode(' to the power of '+s.textContent+' ')); });
     d.querySelectorAll('h4').forEach(h=>{ h.replaceWith(document.createTextNode(' '+h.textContent+'. ')); });
