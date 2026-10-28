@@ -1,0 +1,12 @@
+On-device professor voice — third-party components in this folder
+
+Supertonic 3 text-to-speech model (int8 ONNX files: duration_predictor, text_encoder, vector_estimator, vocoder,
+tts.json, unicode_indexer.bin, voice.bin)
+  Made by Supertone Inc. Released under the OpenRAIL licence listed on the Supertonic 3 model card.
+  Converted for sherpa-onnx by k2-fsa and taken from the sherpa-onnx v2.0.1 release on GitHub.
+
+sherpa-onnx WebAssembly engine (sherpa-onnx-wasm-main-tts.js / .wasm, sherpa-onnx-tts.js)
+  k2-fsa/sherpa-onnx, Apache License 2.0. The engine includes ONNX Runtime (MIT licence, Microsoft).
+  The only change: the bundled model-loading list is emptied, so the page supplies the model files itself.
+
+local-voice.js and local-voice-worker.js are part of Genius Protocol.

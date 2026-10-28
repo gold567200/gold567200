@@ -2221,7 +2221,7 @@ command  : chmod ${octal} file</div>
   function bestVoice(){ const vs=voiceList(); if(!vs.length) return null; const pick=(S.tts&&S.tts.voice)? vs.find(v=>v.voiceURI===S.tts.voice||v.name===S.tts.voice) : null; return pick || vs.slice().sort((a,b)=>scoreVoice(b)-scoreVoice(a))[0]; }
   function fillVoiceSelect(){
     const sel=el("ttsvoice"); if(!sel) return; const vs=voiceList(); const best=bestVoice();
-    const pv=window.GP_VOICE&&!GP_VOICE.framed&&GP_VOICE.hasKey(); const pon=pv&&GP_VOICE.on();
+    const pv=window.GP_VOICE&&GP_VOICE.available(); const pon=pv&&GP_VOICE.on();
     const proOpt=pv?`<option value="__pro__" ${pon?'selected':''}>🎓 ${esc(GP_VOICE.label())} (professor voice)</option>`:'';
     if(!vs.length){ sel.innerHTML=proOpt||'<option value="">(no voices yet — press Play once, then re-open)</option>'; return; }
     const sorted=vs.slice().sort((a,b)=>scoreVoice(b)-scoreVoice(a));
@@ -2229,7 +2229,7 @@ command  : chmod ${octal} file</div>
   }
   if('speechSynthesis'in window){ try{ speechSynthesis.onvoiceschanged=fillVoiceSelect; }catch(e){} }
   function setVoice(uri){
-    if(window.GP_VOICE&&window.GP_VOICE_UI){ if(uri==='__pro__'){ GP_VOICE_UI.toggle(true); if(speaking){ const i=readIdx; stopRead(); startReading(i); } return; } if(GP_VOICE.hasKey()&&GP_VOICE.prefs().on) GP_VOICE_UI.toggle(false); }
+    if(window.GP_VOICE&&window.GP_VOICE_UI){ if(uri==='__pro__'){ GP_VOICE_UI.toggle(true); if(speaking){ const i=readIdx; stopRead(); startReading(i); } return; } if(GP_VOICE.available()&&GP_VOICE.prefs().on) GP_VOICE_UI.toggle(false); }
     S.tts=S.tts||{}; S.tts.voice=uri; save(); if(speaking){ const i=readIdx; stopRead(); startReading(i); } }
   function setRate(r){ S.tts=S.tts||{}; S.tts.rate=+r; save(); const v=el("ttsratev"); if(v) v.textContent=(+r).toFixed(2)+"×"; }
   function voiceHelp(){
@@ -2325,7 +2325,8 @@ command  : chmod ${octal} file</div>
       readTimer=setTimeout(()=>{ if(!speaking) return;
         curBlock=b.el; curBlock.classList.add('reading'); try{ curBlock.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){}
         if(pro){ const nb=readQueue[readIdx+1], pb=readQueue[readIdx-1]; const myRun=readRun;
-          GP_VOICE.say(cleanForSpeech(b.text),{title:(document.querySelector('#deck h1')||{}).textContent||'Lecture',prevText:pb?cleanForSpeech(pb.text):'',prefetchNext:nb?cleanForSpeech(nb.text):''})
+          GP_VOICE.say(cleanForSpeech(b.text),{title:(document.querySelector('#deck h1')||{}).textContent||'Lecture',prevText:pb?cleanForSpeech(pb.text):'',prefetchNext:nb?cleanForSpeech(nb.text):'',
+              onstatus:t=>{ const n=el("ttsnote"); if(n&&myRun===readRun) n.textContent="▶ "+t; }, onstart:()=>{ const n=el("ttsnote"); if(n&&myRun===readRun) n.textContent="▶ "+GP_VOICE.label(); }})
             .then(()=>{ if(!speaking||myRun!==readRun) return; readIdx++; speakNext(); })
             .catch(e=>{ if(!speaking||myRun!==readRun) return; GP_VOICE.suspend(); toast(GP_VOICE.explain(e)+' Switching to the device voice.'); startReading(readIdx); });
           return; }
