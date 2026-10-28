@@ -30,6 +30,7 @@
     ['tool-stats','📈','Study analytics','XP per day, streaks, exam scores by domain, weakest areas.'],
     ['tool-backup','💾','Backup & restore','Export your progress to a file and restore it on any device.'],
     ['tool-socratic','🗣','Socratic mode','Make ADA answer with guiding questions instead of answers — the way the best tutors teach.'],
+    ['tool-voice','🎓','Professor voice','A lifelike ElevenLabs voice for every lecture and the Classroom, on the website version with your own ElevenLabs key.'],
     ['tool-ada','🔑','Connect ADA','Use ADA on the website version with your own Anthropic API key. Inside the Claude app this isn\'t needed.']];
   function toolsHome(){
     let h=`<p class="eyebrow">Toolkit</p><h1 style="margin:0 0 6px">Genius Tools</h1><p class="muted" style="margin:0 0 14px">Everything cognitive science says actually works — retrieval, spacing, interleaving, free recall, deliberate practice — built as tools you can run in two taps.</p><div class="grid c2 tool-grid">`;

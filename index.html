@@ -642,6 +642,7 @@ window.EXTRA_LISTEN = {}; window.EXTRA_CERTS = {}; window.EXTRA_GLOSSARY = []; w
 <script src="portfolio.js"></script>
 <script src="classroom.js"></script>
 <script src="ada_connect.js"></script>
+<script src="voice.js"></script>
 <script src="tools.js"></script>
 <script src="dojo_sql.js"></script>
 <script>
@@ -1312,7 +1313,8 @@ const GP = (function(){
         <div class="row" style="margin-top:10px">
           <label class="tag" style="display:flex;align-items:center;gap:6px">VOICE <select id="ttsvoice" class="txt" style="padding:6px 8px;font-size:13px;max-width:230px" onchange="GP.setVoice(this.value)"><option value="">loading voices…</option></select></label>
           <label class="tag" style="display:flex;align-items:center;gap:6px">SPEED <input id="ttsrate" type="range" min="0.75" max="1.25" step="0.05" value="${(S.tts&&S.tts.rate)||0.95}" oninput="GP.setRate(this.value)" style="width:110px"><span id="ttsratev" class="mono" style="color:var(--cyan)">${((S.tts&&S.tts.rate)||0.95).toFixed(2)}×</span></label>
-          <button class="btn ghost sm" onclick="GP.voiceHelp()">Get a more human voice</button>
+          <button class="btn mg sm" onclick="GP.go('tool-voice')">🎓 Professor voice</button>
+          <button class="btn ghost sm" onclick="GP.voiceHelp()">Device voice tips</button>
           <button class="btn mg sm" onclick="GP.readerMode()">📖 Reader Mode (use your phone's voice, incl. Siri)</button>
         </div>
         <div id="ttshelp" class="faint" style="font-size:13px;margin-top:8px;display:none"></div>
@@ -2213,18 +2215,22 @@ command  : chmod ${octal} file</div>
   // Picks the most natural voice the device offers (neural/premium/enhanced first), reads block by block with
   // human pacing, highlights the passage being read, and lets you pause/resume. Choice + speed are remembered.
   let speaking=false, paused=false, readQueue=[], readIdx=0, curBlock=null, readTimer=null;
-  const VOICE_SCORE=[[/natural/i,100],[/premium/i,90],[/enhanced/i,80],[/neural/i,80],[/siri/i,70],[/\b(ava|zoe|allison|samantha|evan|nathan|tom|karen|moira|daniel|aria|jenny|guy|sonia|ryan|libby)\b/i,40],[/google/i,35],[/microsoft .*online/i,60],[/\(.*online.*\)/i,30],[/desktop|espeak|compact|robot/i,-50]];
+  const VOICE_SCORE=[[/natural/i,100],[/premium/i,90],[/enhanced/i,80],[/neural/i,80],[/siri/i,70],[/\b(ava|zoe|allison|samantha|evan|nathan|tom|karen|moira|daniel|arthur|oliver|serena|kate|jamie|malcolm|aria|jenny|guy|sonia|ryan|libby|andrew|brian|emma)\b/i,40],[/google/i,35],[/microsoft .*online/i,60],[/\(.*online.*\)/i,30],[/desktop|espeak|compact|robot/i,-50]];
   function voiceList(){ try{ return speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang)); }catch(e){ return []; } }
   function scoreVoice(v){ let s=0; VOICE_SCORE.forEach(([re,w])=>{ if(re.test(v.name)) s+=w; }); if(/en[-_]US/i.test(v.lang)) s+=15; if(v.localService===false) s+=5; return s; }
   function bestVoice(){ const vs=voiceList(); if(!vs.length) return null; const pick=(S.tts&&S.tts.voice)? vs.find(v=>v.voiceURI===S.tts.voice||v.name===S.tts.voice) : null; return pick || vs.slice().sort((a,b)=>scoreVoice(b)-scoreVoice(a))[0]; }
   function fillVoiceSelect(){
     const sel=el("ttsvoice"); if(!sel) return; const vs=voiceList(); const best=bestVoice();
-    if(!vs.length){ sel.innerHTML='<option value="">(no voices yet — press Play once, then re-open)</option>'; return; }
+    const pv=window.GP_VOICE&&!GP_VOICE.framed&&GP_VOICE.hasKey(); const pon=pv&&GP_VOICE.on();
+    const proOpt=pv?`<option value="__pro__" ${pon?'selected':''}>🎓 ${esc(GP_VOICE.label())} (professor voice)</option>`:'';
+    if(!vs.length){ sel.innerHTML=proOpt||'<option value="">(no voices yet — press Play once, then re-open)</option>'; return; }
     const sorted=vs.slice().sort((a,b)=>scoreVoice(b)-scoreVoice(a));
-    sel.innerHTML=sorted.map(v=>`<option value="${esc(v.voiceURI)}" ${best&&v.voiceURI===best.voiceURI?'selected':''}>${esc(v.name.replace(/^Microsoft |^Google /,''))}${scoreVoice(v)>=60?' ★':''} (${esc(v.lang)})</option>`).join('');
+    sel.innerHTML=proOpt+sorted.map(v=>`<option value="${esc(v.voiceURI)}" ${!pon&&best&&v.voiceURI===best.voiceURI?'selected':''}>${esc(v.name.replace(/^Microsoft |^Google /,''))}${scoreVoice(v)>=60?' ★':''} (${esc(v.lang)})</option>`).join('');
   }
   if('speechSynthesis'in window){ try{ speechSynthesis.onvoiceschanged=fillVoiceSelect; }catch(e){} }
-  function setVoice(uri){ S.tts=S.tts||{}; S.tts.voice=uri; save(); if(speaking){ const i=readIdx; stopRead(); startReading(i); } }
+  function setVoice(uri){
+    if(window.GP_VOICE&&window.GP_VOICE_UI){ if(uri==='__pro__'){ GP_VOICE_UI.toggle(true); if(speaking){ const i=readIdx; stopRead(); startReading(i); } return; } if(GP_VOICE.hasKey()&&GP_VOICE.prefs().on) GP_VOICE_UI.toggle(false); }
+    S.tts=S.tts||{}; S.tts.voice=uri; save(); if(speaking){ const i=readIdx; stopRead(); startReading(i); } }
   function setRate(r){ S.tts=S.tts||{}; S.tts.rate=+r; save(); const v=el("ttsratev"); if(v) v.textContent=(+r).toFixed(2)+"×"; }
   function voiceHelp(){
     const h=el("ttshelp"); if(!h) return; h.style.display=h.style.display==='none'?'block':'none';
@@ -2271,17 +2277,19 @@ command  : chmod ${octal} file</div>
   }
   // iPhone and iPad only let a page speak if the first utterance starts inside the tap itself.
   // Call this synchronously from a click handler, before any await or timer.
-  function unlockSpeech(){ if(!('speechSynthesis' in window)) return false; try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(' '); u.volume=0; speechSynthesis.speak(u); if(speechSynthesis.paused) speechSynthesis.resume(); return true; }catch(e){ return false; } }
+  function unlockSpeech(){ const pv=!!(window.GP_VOICE&&GP_VOICE.unlock()); if(!('speechSynthesis' in window)) return pv; if(pv) return true; try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(' '); u.volume=0; speechSynthesis.speak(u); if(speechSynthesis.paused) speechSynthesis.resume(); return true; }catch(e){ return false; } }
   function readAloud(){
-    if(!('speechSynthesis'in window)){ el("ttsnote").textContent="(this browser can't read aloud)"; return; }
+    if(!('speechSynthesis'in window)&&!(window.GP_VOICE&&GP_VOICE.on())){ el("ttsnote").textContent="(this browser can't read aloud)"; return; }
     unlockSpeech();
     if(speaking&&paused){ pauseRead(); return; }
     stopRead(); readQueue=lectureBlocks(); if(!readQueue.length) return;
     fillVoiceSelect(); startReading(0);
   }
+  let readRun=0;
   function startReading(from){
-    speaking=true; paused=false; readIdx=from; const pb=el("ttspause"); if(pb) pb.textContent="❚❚ Pause";
-    const v=bestVoice(); el("ttsnote").textContent="▶ "+(v?v.name.replace(/^Microsoft |^Google /,''):"default voice");
+    readRun++; speaking=true; paused=false; readIdx=from; const pb=el("ttspause"); if(pb) pb.textContent="❚❚ Pause";
+    const pro=!!(window.GP_VOICE&&GP_VOICE.on());
+    const v=bestVoice(); el("ttsnote").textContent="▶ "+(pro?GP_VOICE.label():(v?v.name.replace(/^Microsoft |^Google /,''):"default voice"));
     const speakNext=()=>{
       if(!speaking) return;
       if(curBlock){ curBlock.classList.remove('reading'); curBlock=null; }
@@ -2289,6 +2297,11 @@ command  : chmod ${octal} file</div>
       const b=readQueue[readIdx];
       readTimer=setTimeout(()=>{ if(!speaking) return;
         curBlock=b.el; curBlock.classList.add('reading'); try{ curBlock.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){}
+        if(pro){ const nb=readQueue[readIdx+1]; const myRun=readRun;
+          GP_VOICE.say(cleanForSpeech(b.text),{title:(document.querySelector('#deck h1')||{}).textContent||'Lecture',prefetchNext:nb?cleanForSpeech(nb.text):''})
+            .then(()=>{ if(!speaking||myRun!==readRun) return; readIdx++; speakNext(); })
+            .catch(e=>{ if(!speaking||myRun!==readRun) return; GP_VOICE.suspend(); toast(GP_VOICE.explain(e)+' Switching to the device voice.'); startReading(readIdx); });
+          return; }
         const u=new SpeechSynthesisUtterance(cleanForSpeech(b.text)); const vv=bestVoice(); if(vv) u.voice=vv; u.lang=(vv&&vv.lang)||'en-US';
         u.rate=(S.tts&&S.tts.rate)||0.95; u.pitch=1.0; u.volume=1;
         u.onend=()=>{ readIdx++; speakNext(); }; u.onerror=(e)=>{ if(e&&e.error==='interrupted') return; readIdx++; speakNext(); };
@@ -2318,10 +2331,11 @@ command  : chmod ${octal} file</div>
   function closeReader(){ el('reader').classList.remove('show'); document.body.style.overflow=''; }
   function pauseRead(){
     if(!speaking) return; const pb=el("ttspause");
+    if(window.GP_VOICE&&GP_VOICE.on()){ if(!paused){ paused=true; GP_VOICE.pause(); if(pb) pb.textContent="▶ Resume"; el("ttsnote").textContent="paused"; } else { paused=false; GP_VOICE.resume(); if(pb) pb.textContent="❚❚ Pause"; el("ttsnote").textContent="▶ playing"; } return; }
     if(!paused){ paused=true; try{ speechSynthesis.pause(); }catch(e){} if(pb) pb.textContent="▶ Resume"; el("ttsnote").textContent="paused"; }
     else { paused=false; try{ speechSynthesis.resume(); }catch(e){} if(pb) pb.textContent="❚❚ Pause"; el("ttsnote").textContent="▶ playing"; }
   }
-  function stopRead(){ speaking=false; paused=false; clearTimeout(readTimer); if('speechSynthesis'in window){ try{ speechSynthesis.cancel(); }catch(e){} }
+  function stopRead(){ speaking=false; paused=false; clearTimeout(readTimer); if(window.GP_VOICE) GP_VOICE.stop(); if('speechSynthesis'in window){ try{ speechSynthesis.cancel(); }catch(e){} }
     if(curBlock){ curBlock.classList.remove('reading'); curBlock=null; } document.querySelectorAll('.reading').forEach(x=>x.classList.remove('reading'));
     const n=el("ttsnote"); if(n)n.textContent=""; const pb=el("ttspause"); if(pb) pb.textContent="❚❚ Pause"; }
 

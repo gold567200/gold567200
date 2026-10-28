@@ -65,6 +65,13 @@
   }
   function speak(text,label){
     if(st.abort) return Promise.resolve();
+    if(window.GP_VOICE&&GP_VOICE.on()) return new Promise(res=>{ // professor voice (ElevenLabs); falls back to the device voice
+      setStatus('speaking',label); const n=$('cnow'); if(n) n.classList.remove('reading'); showNow(text);
+      GP_VOICE.say(text,{title:(st.m&&st.m.title)||'Classroom'}).then(res,e=>{ if(st.abort) return res(); GP_VOICE.suspend(); try{ A.toast(GP_VOICE.explain(e)+' Switching to the device voice.'); }catch(_){} deviceSpeak(text,label).then(res); }); });
+    return deviceSpeak(text,label);
+  }
+  function deviceSpeak(text,label){
+    if(st.abort) return Promise.resolve();
     if(st.tts===false||!('speechSynthesis' in window)) return readOnScreen(text,label);
     return new Promise(res=>{
       setStatus('speaking',label); const n=$('cnow'); if(n) n.classList.remove('reading'); showNow(text);
@@ -82,7 +89,7 @@
       next();
     });
   }
-  function stopSpeaking(){ try{ speechSynthesis.cancel(); }catch(e){} }
+  function stopSpeaking(){ try{ if(window.GP_VOICE) GP_VOICE.stop(); }catch(e){} try{ speechSynthesis.cancel(); }catch(e){} }
 
   /* ---------- speech in ---------- */
   function SR(){ return window.SpeechRecognition||window.webkitSpeechRecognition||null; }
@@ -269,6 +276,7 @@
     loadOpts(); const C=A.S.classroom||{pos:{},done:{}}; const nx=A.nextUp(); const doneN=Object.keys(C.done||{}).length;
     let h=`<p class="eyebrow">Classroom · hands-free</p><h1 style="margin:0 0 6px">One-on-one with your professor</h1>
       <p class="muted" style="margin:0 0 14px">A spoken lecture that teaches, asks you questions and grades your answers. ${micUsable()?'You answer out loud, so it works hands-free: start it before you drive.':'In the Claude app you type or dictate your answers, so use it where you can glance at the screen; in a browser it can listen and run hands-free.'}</p>
+      <p class="faint" style="margin:-8px 0 14px;font-size:13px">Voice: ${window.GP_VOICE&&GP_VOICE.on()?'🎓 '+A.esc(GP_VOICE.label()):'this device\'s voice'} · <a href="#tool-voice">Professor voice settings</a></p>
       <div class="holo mg" style="margin-bottom:14px"><p class="eyebrow">Continue</p>
         ${nx?`<div class="ti" style="font-size:18px;font-weight:600">${esc(nx.m.title)}</div><p class="muted" style="margin:4px 0 12px">${esc(nx.p.title)}</p><button class="btn mg xl" onclick="GP.go('class-${nx.m.id}')">🎓 Enter classroom ▸</button>`:`<p class="muted">Every loaded module is complete — pick any lesson below to hear it again.</p>`}
       </div>
@@ -306,7 +314,7 @@
           <div id="cyn" class="cls-row" hidden><button class="btn xl" data-yn="1">Yes, I had it</button><button class="btn ghost xl" data-yn="0">No</button></div>
           <div style="margin-top:12px"><button class="btn ghost sm" onclick="CLASSROOM.stop()">■ End class</button></div>`
         :`<div class="cls-row"><button class="btn mg xl" onclick="CLASSROOM.start(0)">▶ Start lesson</button>${pos>2?`<button class="btn ghost xl" onclick="CLASSROOM.start(${pos})">Resume at step ${pos+1}</button>`:''}</div>
-          <p class="faint" style="margin:12px 0 0;font-size:12px">${micUsable()?'Answers: by voice (allow the microphone when asked). ':(FRAMED?'Answers: type them, or tap the microphone on your keyboard to dictate (the Claude app does not let pages use the microphone directly). ':'Answers: type or dictate them (this browser cannot listen). ')}${'speechSynthesis' in window?'The professor speaks aloud; turn your volume up and switch off silent mode. If nothing is heard, the lesson shows the text and waits for you.':'This browser cannot speak, so the lesson shows the text and waits for you.'}</p>`}
+          <p class="faint" style="margin:12px 0 0;font-size:12px">${micUsable()?'Answers: by voice (allow the microphone when asked). ':(FRAMED?'Answers: type them, or tap the microphone on your keyboard to dictate (the Claude app does not let pages use the microphone directly). ':'Answers: type or dictate them (this browser cannot listen). ')}${'speechSynthesis' in window?'The professor speaks aloud; turn your volume up and switch off silent mode. If nothing is heard, the lesson shows the text and waits for you.':'This browser cannot speak, so the lesson shows the text and waits for you.'}</p><p class="faint" style="margin:6px 0 0;font-size:12px">Voice: ${window.GP_VOICE&&GP_VOICE.on()?'🎓 '+esc(GP_VOICE.label()):'this device\'s voice'} · <a href="#tool-voice">Professor voice settings</a></p>`}
       </div>
       <div class="holo" style="margin-top:14px"><p class="eyebrow">What happens</p><p class="muted" style="margin:0;font-size:14px">Objectives → the simple version → the lecture, section by section with a spoken question after each (when ADA is online) → a worked example → misconceptions → a five-question oral quiz graded by your professor → key terms. About ${m.minutes} minutes. Score and progress are saved; mistakes go to your mistake journal.</p>
         <div class="row" style="margin-top:10px"><button class="btn ghost sm" onclick="GP.go('${m.id}')">Open the written lecture</button><button class="btn ghost sm" onclick="GP.go('class')">All lessons</button></div></div>`);
