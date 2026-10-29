@@ -640,6 +640,11 @@ window.EXTRA_LISTEN = {}; window.EXTRA_CERTS = {}; window.EXTRA_GLOSSARY = []; w
 <script src="auditview.js"></script>
 <script src="realtools.js"></script>
 <script src="portfolio.js"></script>
+<script src="focus_1.js"></script>
+<script src="focus_2.js"></script>
+<script src="focus_3.js"></script>
+<script src="focus_4.js"></script>
+<script src="guided.js"></script>
 <script src="classroom.js"></script>
 <script src="ada_connect.js"></script>
 <script src="voice.js"></script>
@@ -1283,6 +1288,7 @@ const GP = (function(){
     if(!found) return home();
     if(window.GPM&&!GPM.unlocked(pp)){ set(`<p class="eyebrow">${esc(pp.title)}</p><h1 style="margin:0 0 6px">${esc(found.title)}</h1><div class="holo am"><p class="eyebrow">Locked</p><p style="margin:0 0 10px">This lesson opens when its prerequisites are demonstrated: ${esc(GPM.prereqNames(pp).join(', '))}.</p><button class="btn sm" onclick="GP.go('${pp.id}')">See what's needed</button></div>`); return; }
     const m=found;
+    if(window.GUIDE&&GUIDE.wants(m)&&GP._fullView!==m.id&&GUIDE.render(API,pp,m,idx)!==false) return;
     const terms=deriveTerms(pp,m);
     const glossaryHtml = terms.length ? `<div class="holo glossary" style="margin-top:14px"><p class="eyebrow">Key terms · ${terms.length}</p>${terms.map(t=>`<div class="g"><b>${esc(t.term)}</b><span>${esc(t.def)}</span></div>`).join('')}</div>` : '';
     const vocabHtml = vocabQuiz(terms);
@@ -1300,7 +1306,7 @@ const GP = (function(){
     set(`
       <p class="eyebrow">${esc(pp.title)} · Module ${idx+1}</p>
       <h1 style="margin:0 0 6px">${esc(m.title)}</h1>
-      <div class="row" style="margin-bottom:12px"><span class="chip cy">${m.minutes} min</span>${moduleDone(m.id)?'<span class="chip ok">✓ completed</span>':''}</div>
+      <div class="row" style="margin-bottom:12px"><span class="chip cy">${m.minutes} min</span>${moduleDone(m.id)?'<span class="chip ok">✓ completed</span>':''}${window.GUIDE&&(window.FOCUS||{})[m.id]?`<span style="flex:1"></span><button class="btn mg sm" id="toguided" onclick="GUIDE.guided('${m.id}')">🎯 Guided version · one step at a time</button>`:''}</div>
       <div class="holo" style="margin-bottom:14px"><p class="eyebrow">Objectives</p><ul class="lecture" style="margin:0">${m.outcomes.map(o=>`<li>${esc(o)}</li>`).join('')}</ul></div>
       <div class="holo" style="margin-bottom:14px;padding:14px 16px">
         <div class="row">
@@ -2368,7 +2374,7 @@ command  : chmod ${octal} file</div>
     const n=el("ttsnote"); if(n)n.textContent=""; const pb=el("ttspause"); if(pb) pb.textContent="❚❚ Pause"; }
 
   // ---------- boot ----------
-  const API={ get S(){return S;}, save, addXP, toast, set, esc, el, phases, phase, allModules, allCards, dueCards, moduleDone, phaseUnlocked, phaseProgress, renderHUD, popin, logMiss, shuffle, deriveTerms, CERTS, LISTEN, GLOSSARY, SIMS, QUOTES, XP, certFor, certAge, ageWords, certReviewOpen, dayKey, unlockSpeech, normalizeState, nextUp, level,
+  const API={ get S(){return S;}, save, addXP, toast, set, esc, el, phases, phase, allModules, allCards, dueCards, moduleDone, phaseUnlocked, phaseProgress, renderHUD, popin, logMiss, shuffle, deriveTerms, annotateTerms, initKwPop, CERTS, LISTEN, GLOSSARY, SIMS, QUOTES, XP, certFor, certAge, ageWords, certReviewOpen, dayKey, unlockSpeech, normalizeState, nextUp, level,
     getSample, ADA_SYS, bestVoice, cleanForSpeech, tableSpeech, stopRead, voiceList, fillVoiceSelect, completeModule, moduleView };
   window.GP_API=API;
   function boot(){

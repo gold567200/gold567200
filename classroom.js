@@ -171,11 +171,20 @@
     S.push({type:'say',text:"Welcome to the classroom. Today's lesson is "+m.title+", module "+num+" of "+p.title+". I'll teach it in sections and ask you questions as we go"+(micUsable()?"; just answer out loud. Whenever I pause, you can say repeat, next, skip, pause, slower, faster, simpler, or stop.":". Type your answers, or tap the microphone on your keyboard and say them. The buttons below let you pause, repeat, skip or ask a question at any time.")+" Let's begin."});
     S.push({type:'say',text:"By the end of this lesson you will be able to: "+m.outcomes.map(o=>o.trim().replace(/[.]+$/,'')).join('. ')+"."});
     if(simple) S.push({type:'say',text:"First, the simple version. "+simple.picture+" "+simple.idea+" Why it matters: "+simple.why, cue:'simple'});
+    // Guided-mode focus pack (focus_*.js): the big idea up front, a plain-words line per section, "remember this" moments and a recap.
+    const F=(window.FOCUS||{})[m.id]; const fparts=F?F.parts||[]:[]; const frem=F?F.remember||[]:[];
+    const norm=t=>String(t||'').replace(/\s+/g,' ').trim().toLowerCase();
+    if(F) S.push({type:'say',text:"Here's the big idea. "+F.big+" Why it matters: "+F.why+" There are "+frem.length+" things I want you to remember from this lesson. I'll point each one out when we get to it.", cue:'focus'});
     const secs=sections(m);
-    secs.forEach((sec,k)=>{ S.push({type:'say',text:(sec.title?('Section '+(k+1)+': '+sec.title+'. '):'')+sec.text, section:sec, cue:'section'});
+    secs.forEach((sec,k)=>{ const pi=sec.title?fparts.findIndex(x=>norm(x.t)===norm(sec.title)):-1; const fp=pi>=0?fparts[pi]:null;
+      const lead=fp?((fp.core?'':"This one is extra depth. Worth hearing once, but you don't need to memorize it. ")+(fp.gist?'In plain words: '+fp.gist+' ':'')):'';
+      S.push({type:'say',text:(sec.title?('Section '+(k+1)+': '+sec.title+'. '):'')+lead+sec.text, section:sec, cue:'section'});
+      const rem=pi>=0?frem.filter(r=>r.part===pi):[];
+      if(rem.length) S.push({type:'say',text:"Okay, this one's important. "+rem.map(r=>'Remember this: '+r.p).join(' '), cue:'remember'});
       S.push({type:'askgen',section:sec}); });
     if(m.example) S.push({type:'say',text:"Now a worked example. "+htmlToSpeech(m.example), cue:'example'});
     if(m.misconceptions&&m.misconceptions.length) S.push({type:'say',text:"Three misconceptions to avoid. "+m.misconceptions.map(x=>x.replace(/[\"“”]/g,'')).join(' Next: ')});
+    if(frem.length) S.push({type:'say',text:"Before the quiz, here are the "+frem.length+" things to remember. "+frem.map((r,j)=>(['Number one','Number two','Number three','Number four','Number five'][j]||'And')+'. '+r.p).join(' '), cue:'recap'});
     S.push({type:'say',text:"Time for your quiz. I'll ask, you answer out loud, and I'll tell you how you did."});
     (m.checks||[]).forEach(c=>S.push({type:'ask',q:c.q,a:c.a,kind:'check'}));
     (m.problems||[]).slice(0,2).forEach(c=>S.push({type:'ask',q:c.q,a:c.a,kind:'problem'}));
