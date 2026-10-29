@@ -156,7 +156,7 @@
       let r; try{ r=await L.speak(text,{sid:p.localSid,speed:1}); }catch(e){ throw mkErr('local',(e&&e.message)||String(e)); }
       if(!r||!r.samples||!r.samples.length) throw mkErr('local','no audio was produced');
       return L.wav(r.samples,r.sampleRate); })();
-    mem.set(k,pr); pr.catch(()=>{ mem.delete(k); });
+    mem.set(k,pr); pr.catch(()=>{ if(mem.get(k)===pr) mem.delete(k); });
     while(mem.size>30) mem.delete(mem.keys().next().value);
     return pr; }
   async function fetchTTS(text,ctx,p){
@@ -181,59 +181,75 @@
         const p2=prefs(); const k2=keyOf(p2,text); const hit2=await idbGet(k2); if(hit2&&hit2.size) return hit2;
         b=await fetchTTS(text,ctx,p2); idbPut(k2,b); return b; }
       idbPut(k,b); return b; })();
-    mem.set(k,pr); pr.catch(()=>{ mem.delete(k); });
+    mem.set(k,pr); pr.catch(()=>{ if(mem.get(k)===pr) mem.delete(k); });
     while(mem.size>60) mem.delete(mem.keys().next().value);
     return pr; }
-  function prefetch(text,prev){ try{ const parts=chunks(text,eng()); if(parts.length) clip(parts[0],{prev:prev||'',next:parts[1]||''}).catch(()=>{}); }catch(e){} }
+  // Fetch the first piece(s) of the next block early; returns the promise for its first piece.
+  function prefetch(text,prev,count){ try{ const parts=chunks(text,eng()); if(!parts.length) return null;
+      const first=clip(parts[0],{prev:prev||'',next:parts[1]||''}); first.catch(()=>{});
+      for(let j=1;j<Math.min(parts.length,count||1);j++) clip(parts[j],{prev:parts[j-1],next:parts[j+1]||''}).catch(()=>{});
+      return first; }catch(e){ return null; } }
 
   /* ---------- playback ---------- */
-  let plays=0, aud=null, gen=0, pendingResolve=null, endPlay=null, paused=false, resumeWait=null, silent=null;
-  function audioEl(){ if(!aud){ aud=new Audio(); aud.preload='auto'; try{ aud.preservesPitch=true; aud.mozPreservesPitch=true; aud.webkitPreservesPitch=true; }catch(e){} } return aud; }
+  // Two audio elements take turns: while one plays, the next piece is loaded into the other, so pieces follow without a gap.
+  let plays=0, els=[], cur=0, gen=0, pendingResolve=null, endPlay=null, paused=false, resumeWait=null, silent=null, lastEnd=0; const gaps=[];
+  function mkEl(){ const a=new Audio(); a.preload='auto'; try{ a.preservesPitch=true; a.mozPreservesPitch=true; a.webkitPreservesPitch=true; }catch(e){} return a; }
+  function audioEl(){ if(!els.length) els=[mkEl(),mkEl()]; return els[cur]; }
+  function standby(){ audioEl(); return els[1-cur]; }
+  function setSrc(a,blob){ if(a.__blob===blob) return; const old=a.__url; a.__blob=blob; a.__url=URL.createObjectURL(blob); a.src=a.__url;
+    if(old) setTimeout(()=>{ try{ URL.revokeObjectURL(old); }catch(e){} },2000); }
+  function preload(blob){ try{ const s=standby(); if(!blob||s.__blob===blob||!s.paused) return; setSrc(s,blob); s.load(); }catch(e){} }
   function silentURL(){ if(silent) return silent; const n=800, b=new ArrayBuffer(44+n), v=new DataView(b); const w=(o,s)=>{ for(let i=0;i<s.length;i++) v.setUint8(o+i,s.charCodeAt(i)); };
     w(0,'RIFF'); v.setUint32(4,36+n,true); w(8,'WAVE'); w(12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true); v.setUint32(24,8000,true); v.setUint32(28,8000,true); v.setUint16(32,1,true); v.setUint16(34,8,true); w(36,'data'); v.setUint32(40,n,true);
     for(let i=0;i<n;i++) v.setUint8(44+i,128); silent=URL.createObjectURL(new Blob([b],{type:'audio/wav'})); return silent; }
   // iPhone and iPad only let a page start audio inside a tap. Call this synchronously from the tap, before any await.
-  function unlock(force){ if(!force&&!on()) return false; const a=audioEl(); try{ a.src=silentURL(); const p=a.play(); if(p&&p.catch) p.catch(()=>{}); }catch(e){} return true; }
+  function unlock(force){ if(!force&&!on()) return false; audioEl(); els.forEach(a=>{ try{ a.__blob=null; a.src=silentURL(); const p=a.play(); if(p&&p.catch) p.catch(()=>{}); }catch(e){} }); return true; }
   function rate(){ const r=Number(A&&A.S&&A.S.tts&&A.S.tts.rate)||(window.GP&&GP.S&&GP.S.tts&&Number(GP.S.tts.rate))||0.95; return Math.max(0.75,Math.min(1.25,r)); }
   function media(title){ try{ if(!('mediaSession' in navigator)||!window.MediaMetadata) return; navigator.mediaSession.metadata=new MediaMetadata({ title:title||'Lecture', artist:label(), album:'Genius Protocol' });
       navigator.mediaSession.setActionHandler('play',()=>resume()); navigator.mediaSession.setActionHandler('pause',()=>pause()); }catch(e){} }
-  function play(blob,my,onstart){
-    return new Promise((res,rej)=>{ const a=audioEl(); const url=URL.createObjectURL(blob); let fin=false;
-      const done=err=>{ if(fin) return; fin=true; a.onended=a.onerror=a.onplaying=null; if(endPlay===finish) endPlay=null; setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(e){} },1000); err?rej(err):res(); };
+  function play(blob,my,onstart,joined){
+    return new Promise((res,rej)=>{ const s=standby(); let a; if(s.__blob===blob){ cur=1-cur; a=els[cur]; } else { a=audioEl(); setSrc(a,blob); }
+      let fin=false;
+      const done=err=>{ if(fin) return; fin=true; a.onended=a.onerror=a.onplaying=null; if(endPlay===finish) endPlay=null; err?rej(err):res(); };
       const finish=()=>done(); endPlay=finish;
-      a.onended=()=>done(); a.onerror=()=>done(mkErr('playback','The audio could not be played.')); a.onplaying=()=>{ plays++; try{ onstart&&onstart(); }catch(e){} };
-      a.src=url; const r=rate(); try{ a.defaultPlaybackRate=r; a.playbackRate=r; }catch(e){}
-      const go=()=>{ if(my!==gen) return done(); const p=a.play(); if(p&&p.catch) p.catch(e=>{ if(e&&e.name==='AbortError') return; done(mkErr(e&&e.name==='NotAllowedError'?'not_allowed':'playback',(e&&e.message)||'')); }); };
+      a.onended=()=>{ lastEnd=performance.now(); done(); }; a.onerror=()=>done(mkErr('playback','The audio could not be played.'));
+      a.onplaying=()=>{ plays++; if(joined&&lastEnd){ gaps.push(Math.round(performance.now()-lastEnd)); if(gaps.length>60) gaps.shift(); } lastEnd=0; try{ onstart&&onstart(); }catch(e){} };
+      const r=rate(); try{ a.currentTime=0; a.defaultPlaybackRate=r; a.playbackRate=r; }catch(e){}
+      const go=()=>{ if(my!==gen) return done(); try{ a.playbackRate=rate(); }catch(e){} const p=a.play(); if(p&&p.catch) p.catch(e=>{ if(e&&e.name==='AbortError') return; done(mkErr(e&&e.name==='NotAllowedError'?'not_allowed':'playback',(e&&e.message)||'')); }); };
       if(paused) resumeWait=go; else go();
     });
   }
   // Speak text with the professor voice. Resolves when finished or stopped; rejects (with .code) if it can't, so callers can fall back.
-  function say(text,opts){ opts=opts||{}; halt(); const my=++gen; const parts=chunks(text,eng());
+  function say(text,opts){ opts=opts||{}; halt(); const my=++gen; const parts=chunks(text,eng()); const local=eng()==='local';
     return new Promise((resolve,reject)=>{ pendingResolve=resolve; let started=false;
       const finish=()=>{ if(pendingResolve===resolve) pendingResolve=null; resolve(); };
       (async()=>{
         if(!parts.length) return finish();
         media(opts.title);
-        if(eng()==='local'&&!(window.GP_LOCAL&&GP_LOCAL.ready())){ try{ opts.onstatus&&opts.onstatus('Loading the voice…'); }catch(e){} }
+        if(local&&!(window.GP_LOCAL&&GP_LOCAL.ready())){ try{ opts.onstatus&&opts.onstatus('Loading the voice…'); }catch(e){} }
         let nextP=clip(parts[0],{prev:opts.prevText||'',next:parts[1]||opts.prefetchNext||''}); nextP.catch(()=>{});
+        // On the phone, queue the whole block and the start of the next one now, so generation stays ahead of playback.
+        if(local){ for(let j=1;j<parts.length;j++) clip(parts[j],{}).catch(()=>{}); if(opts.prefetchNext) prefetch(opts.prefetchNext,parts[parts.length-1],2); }
         for(let i=0;i<parts.length;i++){
           const blob=await nextP; if(my!==gen) return finish();
-          if(i+1<parts.length){ nextP=clip(parts[i+1],{prev:parts[i],next:parts[i+2]||opts.prefetchNext||''}); nextP.catch(()=>{}); }
-          else if(opts.prefetchNext) prefetch(opts.prefetchNext,parts[i]);
-          await play(blob,my,()=>{ if(!started){ started=true; try{ opts.onstart&&opts.onstart(); }catch(e){} } });
+          if(i+1<parts.length){ nextP=clip(parts[i+1],{prev:parts[i],next:parts[i+2]||opts.prefetchNext||''}); nextP.catch(()=>{}); nextP.then(b=>{ if(my===gen) preload(b); },()=>{}); }
+          else if(opts.prefetchNext){ const pn=prefetch(opts.prefetchNext,parts[i],local?2:1); if(pn) pn.then(b=>preload(b),()=>{}); }
+          await play(blob,my,()=>{ if(!started){ started=true; try{ opts.onstart&&opts.onstart(); }catch(e){} } },i>0||!!opts.joined);
           if(my!==gen) return finish();
         }
         finish();
       })().catch(e=>{ if(pendingResolve===resolve) pendingResolve=null; if(my!==gen) return resolve(); reject(e); });
     });
   }
-  function halt(){ gen++; resumeWait=null; try{ if(aud){ aud.pause(); } }catch(e){} if(endPlay){ const f=endPlay; endPlay=null; f(); } if(pendingResolve){ const r=pendingResolve; pendingResolve=null; r(); } }
-  function stop(){ halt(); paused=false; }
-  function pause(){ paused=true; try{ if(aud) aud.pause(); }catch(e){} }
-  function resume(){ paused=false; if(resumeWait){ const f=resumeWait; resumeWait=null; f(); return; } try{ if(aud&&aud.src&&!aud.ended){ const p=aud.play(); if(p&&p.catch) p.catch(()=>{}); } }catch(e){} }
+  function halt(){ gen++; resumeWait=null; els.forEach(a=>{ try{ a.pause(); }catch(e){} }); if(endPlay){ const f=endPlay; endPlay=null; f(); } if(pendingResolve){ const r=pendingResolve; pendingResolve=null; r(); } }
+  // A full stop also drops on-device pieces queued ahead, so a new start isn't kept waiting behind them.
+  function stop(){ halt(); paused=false; lastEnd=0;
+    if(window.GP_LOCAL&&GP_LOCAL.cancelAll){ GP_LOCAL.cancelAll(); for(const k of [...mem.keys()]) if(k.startsWith('L|')) mem.delete(k); } }
+  function pause(){ paused=true; try{ audioEl().pause(); }catch(e){} }
+  function resume(){ paused=false; if(resumeWait){ const f=resumeWait; resumeWait=null; f(); return; } const aud=audioEl(); try{ if(aud&&aud.src&&!aud.ended){ const p=aud.play(); if(p&&p.catch) p.catch(()=>{}); } }catch(e){} }
   function isPaused(){ return paused; }
 
-  window.GP_VOICE={ on, available, hasKey, label, say, stop, pause, resume, isPaused, prefetch, unlock, suspend, explain, chunks, prefs, engine:eng, localDownloaded, stats:()=>({plays}), ensureLocal, localPossible:LOCAL_POSSIBLE, framed:FRAMED, VOICES, MODELS };
+  window.GP_VOICE={ on, available, hasKey, label, say, stop, pause, resume, isPaused, prefetch, unlock, suspend, explain, chunks, prefs, engine:eng, localDownloaded, stats:()=>({plays,gaps:gaps.slice(),local:window.GP_LOCAL&&GP_LOCAL.speed?GP_LOCAL.speed():null}), ensureLocal, localPossible:LOCAL_POSSIBLE, framed:FRAMED, VOICES, MODELS };
 
   /* ---------- Professor voice page ---------- */
   // Supertonic 3's ten voices (speaker ids: F1–F5 are 0–4, M1–M5 are 5–9); descriptions come from measured pitch and pace.

@@ -55,6 +55,53 @@ async function init(d){
   });
 }
 
+// Natural pacing: the model pads every clip with about half a second of silence at each end and leaves
+// 0.35–0.55 s between sentences. Trim the ends and shorten long internal silences so speech flows like a person talking.
+const LEAD_MS=30, TAIL_MS=180, MAX_GAP_MS=260, FADE_MS=6;
+function tighten(x,sr){
+  const hop=Math.round(sr*0.01), n=Math.floor(x.length/hop); if(n<3) return x;
+  const rms=new Float32Array(n); let peak=0;
+  for(let f=0;f<n;f++){ let s=0; for(let i=f*hop,e=i+hop;i<e;i++) s+=x[i]*x[i]; rms[f]=Math.sqrt(s/hop); if(rms[f]>peak) peak=rms[f]; }
+  const thr=Math.max(0.004,peak*0.03); let first=-1,last=-1;
+  for(let f=0;f<n;f++) if(rms[f]>thr){ if(first<0) first=f; last=f; }
+  if(first<0) return x;
+  const start=Math.max(0,(first*hop)-Math.round(sr*LEAD_MS/1000)), end=Math.min(x.length,(last+1)*hop+Math.round(sr*TAIL_MS/1000));
+  // collect the pieces to keep, cutting the middle out of silences longer than MAX_GAP_MS
+  const keep=[]; let segStart=start, f=Math.floor(start/hop); const maxGap=Math.round(MAX_GAP_MS/10);
+  while(f<last){
+    if(rms[f]<=thr){ let g=f; while(g<last&&rms[g]<=thr) g++; const len=g-f;
+      if(len>maxGap){ const half=Math.floor(maxGap/2); keep.push([segStart,(f+half)*hop]); segStart=(g-half)*hop; }
+      f=g; } else f++;
+  }
+  keep.push([segStart,end]);
+  let total=0; keep.forEach(([a,b])=>total+=Math.max(0,b-a));
+  const out=new Float32Array(total), fade=Math.round(sr*FADE_MS/1000); let o=0;
+  keep.forEach(([a,b],k)=>{ const len=Math.max(0,b-a); out.set(x.subarray(a,b),o);
+    if(k>0) for(let i=0;i<fade&&i<len;i++) out[o+i]*=i/fade;                     // fade in after a cut
+    if(k<keep.length-1) for(let i=0;i<fade&&i<len;i++) out[o+len-1-i]*=i/fade;  // fade out before a cut
+    o+=len; });
+  return out;
+}
+
+// Requests are queued so that "stop" can drop the ones not yet started; the worker yields between clips to read new messages.
+const queue=[]; let busy=false;
+async function pump(){
+  if(busy) return; busy=true;
+  while(queue.length){
+    await new Promise(r=>setTimeout(r,0));
+    const d=queue.shift(); if(!d) break;
+    try{
+      const t0=performance.now();
+      const a=tts.generateWithConfig(d.text,{ sid:d.sid|0, speed:d.speed||1.0, numSteps:d.steps||5, silenceScale:0.2, extra:{lang:'en'} });
+      if(!a.samples||!a.samples.length) throw new Error('No audio was produced.');
+      const ms=performance.now()-t0, rawSec=a.samples.length/a.sampleRate;
+      const out=d.raw?a.samples:tighten(a.samples,a.sampleRate);
+      self.postMessage({type:'audio',id:d.id,samples:out,sampleRate:a.sampleRate,ms,rawSec,playedSec:out.length/a.sampleRate,steps:d.steps||5},[out.buffer]);
+    }catch(err){ self.postMessage({type:'error',id:d.id,message:String((err&&err.message)||err)}); }
+  }
+  busy=false;
+}
+
 self.onmessage=async e=>{
   const d=e.data||{};
   if(d.type==='init'){
@@ -62,11 +109,8 @@ self.onmessage=async e=>{
     catch(err){ self.postMessage({type:'error',id:'init',message:String((err&&err.message)||err),notCached:!!(err&&err.notCached)}); }
   } else if(d.type==='speak'){
     if(!tts){ self.postMessage({type:'error',id:d.id,message:'Voice not loaded'}); return; }
-    try{
-      const t0=performance.now();
-      const a=tts.generateWithConfig(d.text,{ sid:d.sid|0, speed:d.speed||1.0, numSteps:d.steps||5, silenceScale:0.2, extra:{lang:'en'} });
-      if(!a.samples||!a.samples.length) throw new Error('No audio was produced.');
-      self.postMessage({type:'audio',id:d.id,samples:a.samples,sampleRate:a.sampleRate,ms:performance.now()-t0},[a.samples.buffer]);
-    }catch(err){ self.postMessage({type:'error',id:d.id,message:String((err&&err.message)||err)}); }
+    queue.push(d); pump();
+  } else if(d.type==='cancel'){
+    const ids=new Set(d.ids||[]); for(let i=queue.length-1;i>=0;i--){ if(d.all||ids.has(queue[i].id)){ self.postMessage({type:'error',id:queue[i].id,message:'cancelled',cancelled:true}); queue.splice(i,1); } }
   }
 };

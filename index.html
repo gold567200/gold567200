@@ -2257,9 +2257,9 @@ command  : chmod ${octal} file</div>
     const blocks=[]; const add=(el2,text,pauseBefore)=>{ text=(text||'').replace(/\s+/g,' ').trim(); if(text) blocks.push({el:el2,text,pause:pauseBefore||0}); };
     const walk=(root)=>{ if(!root) return; root.querySelectorAll(':scope > *').forEach(n=>{
       const tag=n.tagName.toLowerCase();
-      if(tag==='h4'){ const lead=HEAD_LEADS[(heads++)%HEAD_LEADS.length]; add(n,lead+speechText(n).trim().replace(/[.:]+$/,'')+'.',1000); }
-      else if(tag==='p') add(n,speechText(n),450);
-      else if(tag==='ul'||tag==='ol'){ const items=[...n.querySelectorAll(':scope > li')]; items.forEach((li,i)=>add(li,(tag==='ol'?(items.length>2&&i===items.length-1&&i>=3?'Finally, ':(ORDINALS[i]?ORDINALS[i]+', ':'Step '+(i+1)+', ')):'')+speechText(li),300)); }
+      if(tag==='h4'){ const lead=HEAD_LEADS[(heads++)%HEAD_LEADS.length]; add(n,lead+speechText(n).trim().replace(/[.:]+$/,'')+'.',700); }
+      else if(tag==='p') add(n,speechText(n),300);
+      else if(tag==='ul'||tag==='ol'){ const items=[...n.querySelectorAll(':scope > li')]; items.forEach((li,i)=>add(li,(tag==='ol'?(items.length>2&&i===items.length-1&&i>=3?'Finally, ':(ORDINALS[i]?ORDINALS[i]+', ':'Step '+(i+1)+', ')):'')+speechText(li),200)); }
       else if(tag==='pre') add(n,CODE_LINES[(codes++)%CODE_LINES.length],450);
       else if(tag==='table'){ const lines=tableSpeech(n); const trs=[...n.querySelectorAll('tr')].filter(tr=>tr.querySelector('td'));
           if(lines.length){ add(n,'Here\'s a quick table.',500); lines.slice(0,8).forEach((t,i)=>add(trs[i]||n,t,250)); if(lines.length>8) add(n,'The rest of the rows are on screen.',250); } }
