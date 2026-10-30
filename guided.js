@@ -160,8 +160,8 @@
     const d=document.createElement('div'); d.innerHTML=html; const out=[];
     d.querySelectorAll('sup').forEach(s=>s.replaceWith(' to the power of '+s.textContent+' '));
     const walk=root=>[...root.children].forEach(n=>{ const t=n.tagName.toLowerCase();
-      if(t==='pre') out.push('There is a code example on screen; have a look at it when we pause.');
-      else if(t==='table'){ const rows=A.tableSpeech?A.tableSpeech(n):[]; if(rows.length){ out.push("Here's a quick table."); rows.slice(0,6).forEach(r=>out.push(r)); if(rows.length>6) out.push('The rest of the rows are on screen.'); } }
+      if(t==='pre') out.push('There is a code example on screen; study it when we pause.');
+      else if(t==='table'){ const rows=A.tableSpeech?A.tableSpeech(n):[]; if(rows.length){ out.push('The table on screen summarizes this. Its rows:'); rows.slice(0,6).forEach(r=>out.push(r)); if(rows.length>6) out.push('The remaining rows are on screen.'); } }
       else if(t==='ul'||t==='ol'){ [...n.children].forEach((li,k)=>out.push((t==='ol'?(['First','Second','Third','Fourth','Fifth','Sixth','Seventh','Eighth'][k]||'Next')+', ':'')+li.textContent)); }
       else if(t==='div'||t==='section') walk(n);
       else out.push(n.textContent); });
@@ -170,26 +170,28 @@
   }
   function script(k){
     const {m,steps}=cur, s=steps[k], F=pack(m.id), n=splitBody(m).secs.length, seg=[]; const say=(t,p)=>seg.push({t,p:p||300});
-    const short=m.title.replace(/:.*$/,'');
-    if(s.type==='intro'){ say("Let's get into "+short+'.',400); say("Here's the big idea. "+F.big,900); say('Why does this matter? '+F.why,900);
-      say('There are '+F.remember.length+" things I want you to remember from this lesson. I'll point each one out when we get to it.",1200); }
-    else if(s.type==='figs') say('Take a look at the '+(((window.ILLUS||{})[m.id]||[]).length>1?'figures':'figure')+' on screen first. They show what we are about to talk about.',2500);
-    else if(s.type==='scene'){ say('First, setting the scene.',400); speechOf(s.html).forEach(t=>say(t,250)); }
+    const short=m.title.replace(/:.*$/,''), nfig=((window.ILLUS||{})[m.id]||[]).length, nr=F.remember.length;
+    const ORD=['First','Second','Third','Fourth','Fifth'];
+    // A lecturer's register: measured, precise, and explicit about what matters and why.
+    if(s.type==='intro'){ say('Today we take up '+short+'.',500); say('The central idea is this. '+F.big,1000); say('Why should this concern you? '+F.why,1000);
+      say('There are '+nr+" points I would like you to retain from this lesson. I will mark each one as we reach it.",1200); }
+    else if(s.type==='figs') say('Before we begin, study the '+(nfig>1?'figures':'figure')+' on screen. '+(nfig>1?'They frame':'It frames')+' what follows.',2500);
+    else if(s.type==='scene'){ say('Let me first set out the context.',500); speechOf(s.html).forEach(t=>say(t,300)); }
     else if(s.type==='part'){
-      if(s.j===0){ say('Part '+(s.i+1)+' of '+n+'. '+s.meta.t.replace(/[.:]+$/,'')+'.',500);
-        if(!s.meta.core) say("This part is extra depth. It's worth hearing once, but you don't need to memorize it.",500);
-        if(s.meta.gist) say('In plain words: '+s.meta.gist,900); }
-      speechOf(s.html).forEach(t=>say(t,250));
+      if(s.j===0){ say('Part '+(s.i+1)+' of '+n+': '+s.meta.t.replace(/[.:]+$/,'')+'.',600);
+        if(!s.meta.core) say('This part is supplementary. Follow the reasoning, but you need not commit the details to memory.',600);
+        if(s.meta.gist) say('Put simply: '+s.meta.gist,1000); }
+      speechOf(s.html).forEach(t=>say(t,300));
     }
-    else if(s.type==='remember'){ say("Okay. This one's important.",500); s.items.forEach(t=>say('Remember this. '+t,1600)); }
-    else if(s.type==='check'){ say('Quick check. '+s.c.q,600); say('Take a few seconds to think about it.',-4000); say("Here's the answer. "+s.c.a,1200); }
-    else if(s.type==='example'){ say("Now let's work through an example together.",500); speechOf(m.example).forEach(t=>say(t,250)); }
-    else if(s.type==='traps'){ say('A few traps people fall into.',500); m.misconceptions.forEach(t=>say(t,700)); }
-    else if(s.type==='recap'){ say("Let's wrap up. Here are the "+F.remember.length+' things to remember.',700);
-      F.remember.forEach((r,j)=>say((['Number one','Number two','Number three','Number four','Number five'][j]||'And')+'. '+r.p,1000));
-      say("That's the lesson. Take a short break, then try the quiz to lock it in.",300); }
-    // Pauses shrink with the speaking speed, except the thinking time before a quick-check answer (negative p), which stays 4 s.
-    const r=Math.max(1,(A.ttsRate?A.ttsRate():1.5));
+    else if(s.type==='remember'){ say('This next point is essential.',600); s.items.forEach(t=>say('Commit this to memory. '+t,1600)); }
+    else if(s.type==='check'){ say('Let us test your understanding. '+s.c.q,600); say('Consider it for a moment before I answer.',-4000); say('The answer: '+s.c.a,1200); }
+    else if(s.type==='example'){ say('Let us now work through an example, step by step.',600); speechOf(m.example).forEach(t=>say(t,300)); }
+    else if(s.type==='traps'){ say(m.misconceptions.length>1?'Now, some common misconceptions, and why each one fails.':'Now, a common misconception, and why it fails.',600); m.misconceptions.forEach(t=>say(t,800)); }
+    else if(s.type==='recap'){ say('To consolidate, the '+nr+' points to retain.',800);
+      F.remember.forEach((r,j)=>say((ORD[j]||'Finally')+'. '+r.p,1100));
+      say('That concludes the lesson. Rest for a few minutes, then attempt the quiz: retrieving what you have learned is what makes it last.',300); }
+    // Pauses scale with the speaking speed (twice as long at 0.5×), except the thinking time before a quick-check answer (negative p), which stays 4 s.
+    const r=Math.max(0.5,(A.ttsRate?A.ttsRate():0.5));
     return seg.map(x=>({t:A.cleanForSpeech(x.t),p:x.p<0?-x.p:Math.round(x.p/r)}));
   }
   let talking=false, paused=false, run=0, resumeFn=null;
@@ -201,7 +203,7 @@
     return new Promise(res=>{ if(!('speechSynthesis' in window)) return setTimeout(res,Math.min(8000,text.length*55));
       const parts=(text.match(/[^.!?]+[.!?]+["')\]]?\s*|[^.!?]+$/g)||[text]); let k=0;
       const next=()=>{ if(my!==run||k>=parts.length) return res(); const u=new SpeechSynthesisUtterance(parts[k++]); const v=A.bestVoice&&A.bestVoice(); if(v){ u.voice=v; u.lang=v.lang; } else u.lang='en-US';
-        u.rate=(A.ttsRate?A.ttsRate():1.5); u.onend=next; u.onerror=()=>next(); try{ speechSynthesis.speak(u); }catch(e){ res(); } };
+        u.rate=(A.ttsRate?A.ttsRate():0.5); u.onend=next; u.onerror=()=>next(); try{ speechSynthesis.speak(u); }catch(e){ res(); } };
       next(); });
   }
   async function holdIfPaused(){ while(paused){ await new Promise(r=>{ resumeFn=r; }); } }

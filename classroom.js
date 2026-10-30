@@ -81,7 +81,7 @@
         readOnScreen(parts.slice(Math.max(0,k-1)).join(' '),label).then(res); };
       const next=()=>{ clearTimeout(guard); if(st.abort||st.paused) return res(); if(k>=parts.length) return res();
         const u=new SpeechSynthesisUtterance(parts[k++]); const v=A.bestVoice(); if(v){ u.voice=v; u.lang=v.lang||'en-US'; } else u.lang='en-US';
-        u.rate=(A.ttsRate?A.ttsRate():1.5); u.pitch=1; u.volume=1;
+        u.rate=(A.ttsRate?A.ttsRate():0.5); u.pitch=1; u.volume=1;
         u.onstart=()=>{ started=true; st.tts=true; clearTimeout(guard); };
         u.onend=next; u.onerror=(e)=>{ clearTimeout(guard); const er=e&&e.error; if(er==='interrupted'||er==='canceled') return res(); if(er==='not-allowed'||(!started&&er==='synthesis-failed')) return fallback(); next(); };
         try{ speechSynthesis.speak(u); }catch(e){ return fallback(); }
@@ -168,27 +168,27 @@
   function buildSteps(p,m){
     const S=[]; const simple=(window.SIMPLE||{})[m.id];
     const num=(p.modules||[]).indexOf(m)+1;
-    S.push({type:'say',text:"Welcome to the classroom. Today's lesson is "+m.title+", module "+num+" of "+p.title+". I'll teach it in sections and ask you questions as we go"+(micUsable()?"; just answer out loud. Whenever I pause, you can say repeat, next, skip, pause, slower, faster, simpler, or stop.":". Type your answers, or tap the microphone on your keyboard and say them. The buttons below let you pause, repeat, skip or ask a question at any time.")+" Let's begin."});
+    S.push({type:'say',text:"Welcome to the classroom. Today's lesson is "+m.title+", module "+num+" of "+p.title+". I will teach it in sections and put questions to you as we go"+(micUsable()?"; just answer out loud. Whenever I pause, you can say repeat, next, skip, pause, slower, faster, simpler, or stop.":". Type your answers, or tap the microphone on your keyboard and say them. The buttons below let you pause, repeat, skip or ask a question at any time.")+" Let's begin."});
     S.push({type:'say',text:"By the end of this lesson you will be able to: "+m.outcomes.map(o=>o.trim().replace(/[.]+$/,'')).join('. ')+"."});
-    if(simple) S.push({type:'say',text:"First, the simple version. "+simple.picture+" "+simple.idea+" Why it matters: "+simple.why, cue:'simple'});
+    if(simple) S.push({type:'say',text:"We begin with the intuition. "+simple.picture+" "+simple.idea+" Why it matters: "+simple.why, cue:'simple'});
     // Guided-mode focus pack (focus_*.js): the big idea up front, a plain-words line per section, "remember this" moments and a recap.
     const F=(window.FOCUS||{})[m.id]; const fparts=F?F.parts||[]:[]; const frem=F?F.remember||[]:[];
     const norm=t=>String(t||'').replace(/\s+/g,' ').trim().toLowerCase();
-    if(F) S.push({type:'say',text:"Here's the big idea. "+F.big+" Why it matters: "+F.why+" There are "+frem.length+" things I want you to remember from this lesson. I'll point each one out when we get to it.", cue:'focus'});
+    if(F) S.push({type:'say',text:"The central idea is this. "+F.big+" Why should this concern you? "+F.why+" There are "+frem.length+" points I would like you to retain from this lesson. I will mark each one as we reach it.", cue:'focus'});
     const secs=sections(m);
     secs.forEach((sec,k)=>{ const pi=sec.title?fparts.findIndex(x=>norm(x.t)===norm(sec.title)):-1; const fp=pi>=0?fparts[pi]:null;
-      const lead=fp?((fp.core?'':"This one is extra depth. Worth hearing once, but you don't need to memorize it. ")+(fp.gist?'In plain words: '+fp.gist+' ':'')):'';
+      const lead=fp?((fp.core?'':"This section is supplementary. Follow the reasoning, but you need not commit the details to memory. ")+(fp.gist?'Put simply: '+fp.gist+' ':'')):'';
       S.push({type:'say',text:(sec.title?('Section '+(k+1)+': '+sec.title+'. '):'')+lead+sec.text, section:sec, cue:'section'});
       const rem=pi>=0?frem.filter(r=>r.part===pi):[];
-      if(rem.length) S.push({type:'say',text:"Okay, this one's important. "+rem.map(r=>'Remember this: '+r.p).join(' '), cue:'remember'});
+      if(rem.length) S.push({type:'say',text:"This next point is essential. "+rem.map(r=>'Commit this to memory: '+r.p).join(' '), cue:'remember'});
       S.push({type:'askgen',section:sec}); });
-    if(m.example) S.push({type:'say',text:"Now a worked example. "+htmlToSpeech(m.example), cue:'example'});
-    if(m.misconceptions&&m.misconceptions.length) S.push({type:'say',text:"Three misconceptions to avoid. "+m.misconceptions.map(x=>x.replace(/[\"“”]/g,'')).join(' Next: ')});
-    if(frem.length) S.push({type:'say',text:"Before the quiz, here are the "+frem.length+" things to remember. "+frem.map((r,j)=>(['Number one','Number two','Number three','Number four','Number five'][j]||'And')+'. '+r.p).join(' '), cue:'recap'});
-    S.push({type:'say',text:"Time for your quiz. I'll ask, you answer out loud, and I'll tell you how you did."});
+    if(m.example) S.push({type:'say',text:"Let us now work through an example, step by step. "+htmlToSpeech(m.example), cue:'example'});
+    if(m.misconceptions&&m.misconceptions.length) S.push({type:'say',text:(m.misconceptions.length>1?"Now, "+m.misconceptions.length+" common misconceptions, and why each one fails. ":"Now, a common misconception, and why it fails. ")+m.misconceptions.map(x=>x.replace(/[\"“”]/g,'')).join(' Another: ')});
+    if(frem.length) S.push({type:'say',text:"Before the quiz, let us consolidate the "+frem.length+" points to retain. "+frem.map((r,j)=>(['First','Second','Third','Fourth','Fifth'][j]||'Finally')+'. '+r.p).join(' '), cue:'recap'});
+    S.push({type:'say',text:"Now for the quiz. I will pose each question; you answer, and I will tell you how you did."});
     (m.checks||[]).forEach(c=>S.push({type:'ask',q:c.q,a:c.a,kind:'check'}));
     (m.problems||[]).slice(0,2).forEach(c=>S.push({type:'ask',q:c.q,a:c.a,kind:'problem'}));
-    try{ const terms=(A.deriveTerms(p,m)||[]).slice(0,8); if(terms.length) S.push({type:'say',text:"Key terms to remember. "+terms.map(t=>t.term+': '+t.def).join(' ')}); }catch(e){}
+    try{ const terms=(A.deriveTerms(p,m)||[]).slice(0,8); if(terms.length) S.push({type:'say',text:"Finally, the key terms. "+terms.map(t=>t.term+': '+t.def).join(' ')}); }catch(e){}
     S.push({type:'end'});
     return S;
   }
@@ -200,8 +200,8 @@
     if(c==='next'||c==='skip'){ return 'next'; }
     if(c==='pause'){ st.paused=true; await waitIfPaused(); return 'again'; }
     if(c==='stop'){ stop(true); return 'stop'; }
-    if(c==='slower'){ A.setRate((A.ttsRate?A.ttsRate():1.5)-0.25); await speak("Slower. Like this."); return 'again'; }
-    if(c==='faster'){ A.setRate((A.ttsRate?A.ttsRate():1.5)+0.25); await speak("Faster. Like this."); return 'again'; }
+    if(c==='slower'){ A.setRate((A.ttsRate?A.ttsRate():0.5)-0.25); await speak("Slower. Like this."); return 'again'; }
+    if(c==='faster'){ A.setRate((A.ttsRate?A.ttsRate():0.5)+0.25); await speak("Faster. Like this."); return 'again'; }
     if(c==='simpler'){ const s=st.steps[st.i-1]&&st.steps[st.i-1].section; const t=await ada("Explain this section of '"+st.m.title+"' again as if to a bright twelve-year-old, with one everyday analogy, then connect the analogy back to the real terms:\n\n"+((s&&s.text)||st.m.title).slice(0,1500),120); await speak(t||"Here's the simple version again. "+(((window.SIMPLE||{})[st.m.id]||{}).idea||'')); return 'next'; }
     if(c==='question'){ await speak(micUsable()?"Go ahead, ask your question.":"Type your question, or dictate it with your keyboard's microphone."); const r=await listen({kind:'question',maxMs:20000,label:micUsable()?'Listening for your question':'Type or dictate your question'}); if(r.text){ const t=await ada("The student asked, out loud, during the lesson '"+st.m.title+"': \""+r.text+"\". Answer clearly in under 90 spoken words, then say 'Back to the lesson.'",90); await speak(t||"I can't reach my answer engine right now. Let's keep going and ask ADA later. Back to the lesson."); } return 'next'; }
     return null;
@@ -217,7 +217,7 @@
     if(c){ const h=await handleCommand(c); if(h==='stop') return; return askAndGrade(q,a,kind); }
     st.score.n++;
     if(r.unsupported||!r.text){
-      if(r.unsupported){ await speak("Here's the model answer. "+a+" Were you right?"); const v=await tapYesNo(); if(v) st.score.ok++; await speak(v?"Good.":"That's fine, we'll revisit it."); return; }
+      if(r.unsupported){ await speak("Here's the model answer. "+a+" Were you right?"); const v=await tapYesNo(); if(v) st.score.ok++; await speak(v?"Correct.":"No matter; we will return to it."); return; }
       await speak("I didn't catch that. Here's the model answer. "+a+(micUsable()?" Say yes if you had it, or no.":" Did you have it?"));
       const r2=await listen({kind:'yesno',maxMs:8000,label:micUsable()?'Say yes or no':'Did you have it?'}); const yes=/\b(yes|yeah|yep|i did|correct|got it)\b/i.test(r2.text||''); if(yes) st.score.ok++; await speak(yes?"Good.":"Noted. We'll come back to it."); return;
     }

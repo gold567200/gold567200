@@ -153,7 +153,7 @@
     const pr=(async()=>{ const L=await ensureLocal(); if(!L) throw mkErr('local','the voice files could not be loaded');
       if(!L.ready()){ try{ await L.load(null,{allowDownload:false}); }
         catch(e){ if(e&&e.notCached){ try{ localStorage.removeItem(LOCAL_STORE); }catch(_){} throw mkErr('local_missing','The downloaded voice is no longer on this device.'); } throw mkErr('local',(e&&e.message)||String(e)); } }
-      let r; try{ r=await L.speak(text,{sid:p.localSid,speed:spd}); }catch(e){ throw mkErr('local',(e&&e.message)||String(e)); }
+      let r; try{ r=await L.speak(text,{sid:p.localSid,speed:spd,play:playRate()}); }catch(e){ throw mkErr('local',(e&&e.message)||String(e)); }
       if(!r||!r.samples||!r.samples.length) throw mkErr('local','no audio was produced');
       return L.wav(r.samples,r.sampleRate); })();
     mem.set(k,pr); pr.catch(()=>{ if(mem.get(k)===pr) mem.delete(k); });
@@ -204,11 +204,13 @@
     for(let i=0;i<n;i++) v.setUint8(44+i,128); silent=URL.createObjectURL(new Blob([b],{type:'audio/wav'})); return silent; }
   // iPhone and iPad only let a page start audio inside a tap. Call this synchronously from the tap, before any await.
   function unlock(force){ if(!force&&!on()) return false; audioEl(); els.forEach(a=>{ try{ a.__blob=null; a.src=silentURL(); const p=a.play(); if(p&&p.catch) p.catch(()=>{}); }catch(e){} }); return true; }
-  // Speaking speed (1.5× by default). ElevenLabs audio is played faster (pitch kept); the on-device model speaks faster itself,
-  // which also makes each piece quicker to generate, so a phone keeps ahead of playback.
-  function rate(){ const api=A||window.GP_API; if(api&&api.ttsRate) return api.ttsRate(); return 1.5; }
-  function localSpeed(){ return Math.round(rate()*20)/20; }
-  function playRate(){ return eng()==='local'?1:rate(); }
+  // Speaking speed (0.5× by default since the learner asked for it). Below 1×, every engine slows playback with the pitch kept.
+  // The on-device model is not asked to slow down itself: measured, at speed 0.5 it mostly adds long silences and drops voiced
+  // sound (3.8 s voiced of 22.6 s, versus 6.8 s voiced at 1×), so it generates at 1× and the player stretches it. Above 1× the
+  // model speaks faster itself, which also makes each piece quicker to generate.
+  function rate(){ const api=A||window.GP_API; if(api&&api.ttsRate) return api.ttsRate(); return 0.5; }
+  function localSpeed(){ const r=rate(); return r>1?Math.round(r*20)/20:1; }
+  function playRate(){ const r=rate(); return eng()==='local'?(r<1?r:1):r; }
   function media(title){ try{ if(!('mediaSession' in navigator)||!window.MediaMetadata) return; navigator.mediaSession.metadata=new MediaMetadata({ title:title||'Lecture', artist:label(), album:'Genius Protocol' });
       navigator.mediaSession.setActionHandler('play',()=>resume()); navigator.mediaSession.setActionHandler('pause',()=>pause()); }catch(e){} }
   function play(blob,my,onstart,joined){

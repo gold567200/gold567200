@@ -30,7 +30,7 @@
       worker.onmessage=e=>{ const d=e.data||{};
         if(d.type==='progress'){ try{ progressCb&&progressCb(d.got,d.total||TOTAL,d.stage); }catch(_){} }
         else if(d.type==='ready'){ isReady=true; resolve(); }
-        else if(d.type==='audio'){ adapt(d.ms,d.playedSec||d.rawSec,d.steps); const p=pending.get(d.id); if(p){ pending.delete(d.id); p.resolve({samples:d.samples,sampleRate:d.sampleRate,ms:d.ms,rawSec:d.rawSec,steps:d.steps}); } }
+        else if(d.type==='audio'){ const p=pending.get(d.id); adapt(d.ms,(d.playedSec||d.rawSec)/((p&&p.play)||1),d.steps); if(p){ pending.delete(d.id); p.resolve({samples:d.samples,sampleRate:d.sampleRate,ms:d.ms,rawSec:d.rawSec,steps:d.steps}); } }
         else if(d.type==='error'){
           if(d.id==='init'){ readyP=null; isReady=false; try{ worker.terminate(); }catch(_){} worker=null; const er=new Error(d.notCached?'The downloaded voice is no longer on this device.':d.message); er.notCached=!!d.notCached; reject(er); }
           else { const p=pending.get(d.id); if(p){ pending.delete(d.id); const er=new Error(d.message); er.cancelled=!!d.cancelled; p.reject(er); } } } };
@@ -48,7 +48,7 @@
   const SPEED_STORE='genius_local_voice_speed_v1';
   let rtf=null, steps=4;
   try{ const v=JSON.parse(localStorage.getItem(SPEED_STORE)||'null'); if(v&&v.steps>=2&&v.steps<=5) steps=v.steps|0; }catch(e){}
-  function adapt(ms,sec,used){ if(!(sec>0)) return; const play=sec; /* played at normal rate; the model itself speaks at the chosen speed */ const r=(ms/1000)/play;
+  function adapt(ms,sec,used){ if(!(sec>0)) return; const play=sec; /* seconds of playback, already divided by the player's rate when it is slowed */ const r=(ms/1000)/play;
     if(used!==steps) return;                         // judge each setting only by clips made with it
     rtf=rtf==null?r:rtf*0.4+r*0.6;
     const before=steps; if(rtf>0.8&&steps>2) steps--; else if(rtf<0.5&&steps<5) steps++;
@@ -56,7 +56,7 @@
     try{ localStorage.setItem(SPEED_STORE,JSON.stringify({steps})); }catch(e){} }
   async function speak(text,opts){ opts=opts||{}; if(!isReady) await load();
     const id=++seq;
-    return new Promise((resolve,reject)=>{ pending.set(id,{resolve,reject}); worker.postMessage({type:'speak',id,text:String(text||''),sid:opts.sid|0,speed:opts.speed||1,steps:opts.steps||steps,raw:!!opts.raw}); });
+    return new Promise((resolve,reject)=>{ pending.set(id,{resolve,reject,play:opts.play>0?opts.play:1}); worker.postMessage({type:'speak',id,text:String(text||''),sid:opts.sid|0,speed:opts.speed||1,steps:opts.steps||steps,raw:!!opts.raw}); });
   }
   // Drop queued requests that haven't started (used when playback stops).
   function cancelAll(){ if(worker) worker.postMessage({type:'cancel',all:true}); }

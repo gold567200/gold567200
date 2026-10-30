@@ -2237,10 +2237,10 @@ command  : chmod ${octal} file</div>
   function setVoice(uri){
     if(window.GP_VOICE&&window.GP_VOICE_UI){ if(uri==='__pro__'){ GP_VOICE_UI.toggle(true); if(speaking){ const i=readIdx; stopRead(); startReading(i); } return; } if(GP_VOICE.available()&&GP_VOICE.prefs().on) GP_VOICE_UI.toggle(false); }
     S.tts=S.tts||{}; S.tts.voice=uri; save(); if(speaking){ const i=readIdx; stopRead(); startReading(i); } }
-  // Speaking speed for every voice (device, on-device professor, ElevenLabs). 1.5× by default since v70.
-  const TTS={def:1.5,min:0.75,max:2};
+  // Speaking speed for every voice (device, on-device professor, ElevenLabs). 0.5× by default since v70 (the learner's choice).
+  const TTS={def:0.5,min:0.5,max:2};
   function ttsRate(){ const r=Number(S.tts&&S.tts.rate); return Math.max(TTS.min,Math.min(TTS.max,Number.isFinite(r)&&r>0?r:TTS.def)); }
-  function setRate(r){ S.tts=S.tts||{}; S.tts.rate=Math.max(TTS.min,Math.min(TTS.max,+r||TTS.def)); S.tts.v=2; save(); const v=el("ttsratev"); if(v) v.textContent=S.tts.rate.toFixed(2)+"×"; }
+  function setRate(r){ S.tts=S.tts||{}; S.tts.rate=Math.max(TTS.min,Math.min(TTS.max,+r||TTS.def)); S.tts.v=3; save(); const v=el("ttsratev"); if(v) v.textContent=S.tts.rate.toFixed(2)+"×"; }
   function voiceHelp(){
     const h=el("ttshelp"); if(!h) return; h.style.display=h.style.display==='none'?'block':'none';
     const ua=navigator.userAgent; let tip;
@@ -2258,9 +2258,9 @@ command  : chmod ${octal} file</div>
     c.querySelectorAll('code').forEach(cd=>cd.replaceWith(' '+cd.textContent+' '));
     return c.textContent;
   }
-  const HEAD_LEADS=['Next: ','Now let\'s turn to ','Moving on: ','Now, '];
+  const HEAD_LEADS=['We turn now to: ','Next: ','Our next topic: ','Now: '];
   const ORDINALS=['First','Second','Third','Fourth','Fifth','Sixth','Seventh','Eighth','Ninth','Tenth'];
-  const CODE_LINES=['Take a look at the code example on screen.','There\'s a short code example on screen; have a look at it when we finish.','Have a look at the code on screen for this part.'];
+  const CODE_LINES=['Examine the code example on screen.','There is a short code example on screen; study it when we finish.','The code on screen illustrates this point; read it through.'];
   function lectureBlocks(){
     let heads=0, codes=0;
     const blocks=[]; const add=(el2,text,pauseBefore)=>{ text=(text||'').replace(/\s+/g,' ').trim(); if(text) blocks.push({el:el2,text,pause:pauseBefore||0}); };
@@ -2271,7 +2271,7 @@ command  : chmod ${octal} file</div>
       else if(tag==='ul'||tag==='ol'){ const items=[...n.querySelectorAll(':scope > li')]; items.forEach((li,i)=>add(li,(tag==='ol'?(items.length>2&&i===items.length-1&&i>=3?'Finally, ':(ORDINALS[i]?ORDINALS[i]+', ':'Step '+(i+1)+', ')):'')+speechText(li),200)); }
       else if(tag==='pre') add(n,CODE_LINES[(codes++)%CODE_LINES.length],450);
       else if(tag==='table'){ const lines=tableSpeech(n); const trs=[...n.querySelectorAll('tr')].filter(tr=>tr.querySelector('td'));
-          if(lines.length){ add(n,'Here\'s a quick table.',500); lines.slice(0,8).forEach((t,i)=>add(trs[i]||n,t,250)); if(lines.length>8) add(n,'The rest of the rows are on screen.',250); } }
+          if(lines.length){ add(n,'The table on screen summarizes this. Its rows:',500); lines.slice(0,8).forEach((t,i)=>add(trs[i]||n,t,250)); if(lines.length>8) add(n,'The remaining rows are on screen.',250); } }
       else if(tag==='div'||tag==='section') walk(n);
       else add(n,speechText(n),300); }); };
     const sb=document.querySelector('.simplebox'); if(sb){ blocks.push({el:sb,text:'First, the simple version.',pause:0}); sb.querySelectorAll('p:not(.eyebrow)').forEach(p=>add(p,speechText(p),350)); blocks.push({el:sb,text:'Now the full lecture.',pause:700}); }
@@ -2381,8 +2381,8 @@ command  : chmod ${octal} file</div>
     getSample, ADA_SYS, bestVoice, cleanForSpeech, tableSpeech, stopRead, voiceList, fillVoiceSelect, completeModule, moduleView };
   window.GP_API=API;
   function boot(){
-    // v70: speech speed moves to 1.5× once (the learner asked for faster speech); the SPEED slider still changes it.
-    if(!S.tts||S.tts.v!==2){ S.tts=S.tts||{}; S.tts.rate=TTS.def; S.tts.v=2; }
+    // v70: speech speed moves to 0.5× once (the learner asked for it); the SPEED slider still changes it.
+    if(!S.tts||S.tts.v!==3){ S.tts=S.tts||{}; S.tts.rate=TTS.def; S.tts.v=3; }
     renderHUD();
     if(S.readpx) document.documentElement.style.setProperty('--read',S.readpx+'px');
     document.addEventListener('click',e=>{ if(!e.target.closest('.kw')) hideKw(); });
