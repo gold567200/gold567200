@@ -149,11 +149,11 @@
 
   /* ---------- fetching speech ---------- */
   const mem=new Map();
-  function localClip(text){ const p=prefs(); const k='L|'+p.localSid+'|'+text; if(mem.has(k)) return mem.get(k);
+  function localClip(text){ const p=prefs(); const spd=localSpeed(); const k='L|'+p.localSid+'|'+spd+'|'+text; if(mem.has(k)) return mem.get(k);
     const pr=(async()=>{ const L=await ensureLocal(); if(!L) throw mkErr('local','the voice files could not be loaded');
       if(!L.ready()){ try{ await L.load(null,{allowDownload:false}); }
         catch(e){ if(e&&e.notCached){ try{ localStorage.removeItem(LOCAL_STORE); }catch(_){} throw mkErr('local_missing','The downloaded voice is no longer on this device.'); } throw mkErr('local',(e&&e.message)||String(e)); } }
-      let r; try{ r=await L.speak(text,{sid:p.localSid,speed:1}); }catch(e){ throw mkErr('local',(e&&e.message)||String(e)); }
+      let r; try{ r=await L.speak(text,{sid:p.localSid,speed:spd}); }catch(e){ throw mkErr('local',(e&&e.message)||String(e)); }
       if(!r||!r.samples||!r.samples.length) throw mkErr('local','no audio was produced');
       return L.wav(r.samples,r.sampleRate); })();
     mem.set(k,pr); pr.catch(()=>{ if(mem.get(k)===pr) mem.delete(k); });
@@ -204,7 +204,11 @@
     for(let i=0;i<n;i++) v.setUint8(44+i,128); silent=URL.createObjectURL(new Blob([b],{type:'audio/wav'})); return silent; }
   // iPhone and iPad only let a page start audio inside a tap. Call this synchronously from the tap, before any await.
   function unlock(force){ if(!force&&!on()) return false; audioEl(); els.forEach(a=>{ try{ a.__blob=null; a.src=silentURL(); const p=a.play(); if(p&&p.catch) p.catch(()=>{}); }catch(e){} }); return true; }
-  function rate(){ const r=Number(A&&A.S&&A.S.tts&&A.S.tts.rate)||(window.GP&&GP.S&&GP.S.tts&&Number(GP.S.tts.rate))||0.95; return Math.max(0.75,Math.min(1.25,r)); }
+  // Speaking speed (1.5× by default). ElevenLabs audio is played faster (pitch kept); the on-device model speaks faster itself,
+  // which also makes each piece quicker to generate, so a phone keeps ahead of playback.
+  function rate(){ const api=A||window.GP_API; if(api&&api.ttsRate) return api.ttsRate(); return 1.5; }
+  function localSpeed(){ return Math.round(rate()*20)/20; }
+  function playRate(){ return eng()==='local'?1:rate(); }
   function media(title){ try{ if(!('mediaSession' in navigator)||!window.MediaMetadata) return; navigator.mediaSession.metadata=new MediaMetadata({ title:title||'Lecture', artist:label(), album:'Genius Protocol' });
       navigator.mediaSession.setActionHandler('play',()=>resume()); navigator.mediaSession.setActionHandler('pause',()=>pause()); }catch(e){} }
   function play(blob,my,onstart,joined){
@@ -214,8 +218,8 @@
       const finish=()=>done(); endPlay=finish;
       a.onended=()=>{ lastEnd=performance.now(); done(); }; a.onerror=()=>done(mkErr('playback','The audio could not be played.'));
       a.onplaying=()=>{ plays++; if(joined&&lastEnd){ gaps.push(Math.round(performance.now()-lastEnd)); if(gaps.length>60) gaps.shift(); } lastEnd=0; try{ onstart&&onstart(); }catch(e){} };
-      const r=rate(); try{ a.currentTime=0; a.defaultPlaybackRate=r; a.playbackRate=r; }catch(e){}
-      const go=()=>{ if(my!==gen) return done(); try{ a.playbackRate=rate(); }catch(e){} const p=a.play(); if(p&&p.catch) p.catch(e=>{ if(e&&e.name==='AbortError') return; done(mkErr(e&&e.name==='NotAllowedError'?'not_allowed':'playback',(e&&e.message)||'')); }); };
+      const r=playRate(); try{ a.currentTime=0; a.defaultPlaybackRate=r; a.playbackRate=r; }catch(e){}
+      const go=()=>{ if(my!==gen) return done(); try{ a.playbackRate=playRate(); }catch(e){} const p=a.play(); if(p&&p.catch) p.catch(e=>{ if(e&&e.name==='AbortError') return; done(mkErr(e&&e.name==='NotAllowedError'?'not_allowed':'playback',(e&&e.message)||'')); }); };
       if(paused) resumeWait=go; else go();
     });
   }

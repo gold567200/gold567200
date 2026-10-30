@@ -48,7 +48,7 @@
   const SPEED_STORE='genius_local_voice_speed_v1';
   let rtf=null, steps=4;
   try{ const v=JSON.parse(localStorage.getItem(SPEED_STORE)||'null'); if(v&&v.steps>=2&&v.steps<=5) steps=v.steps|0; }catch(e){}
-  function adapt(ms,sec,used){ if(!(sec>0)) return; const play=sec/0.95; const r=(ms/1000)/play;
+  function adapt(ms,sec,used){ if(!(sec>0)) return; const play=sec; /* played at normal rate; the model itself speaks at the chosen speed */ const r=(ms/1000)/play;
     if(used!==steps) return;                         // judge each setting only by clips made with it
     rtf=rtf==null?r:rtf*0.4+r*0.6;
     const before=steps; if(rtf>0.8&&steps>2) steps--; else if(rtf<0.5&&steps<5) steps++;

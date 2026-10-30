@@ -182,13 +182,15 @@
       speechOf(s.html).forEach(t=>say(t,250));
     }
     else if(s.type==='remember'){ say("Okay. This one's important.",500); s.items.forEach(t=>say('Remember this. '+t,1600)); }
-    else if(s.type==='check'){ say('Quick check. '+s.c.q,600); say('Take a few seconds to think about it.',4000); say("Here's the answer. "+s.c.a,1200); }
+    else if(s.type==='check'){ say('Quick check. '+s.c.q,600); say('Take a few seconds to think about it.',-4000); say("Here's the answer. "+s.c.a,1200); }
     else if(s.type==='example'){ say("Now let's work through an example together.",500); speechOf(m.example).forEach(t=>say(t,250)); }
     else if(s.type==='traps'){ say('A few traps people fall into.',500); m.misconceptions.forEach(t=>say(t,700)); }
     else if(s.type==='recap'){ say("Let's wrap up. Here are the "+F.remember.length+' things to remember.',700);
       F.remember.forEach((r,j)=>say((['Number one','Number two','Number three','Number four','Number five'][j]||'And')+'. '+r.p,1000));
       say("That's the lesson. Take a short break, then try the quiz to lock it in.",300); }
-    return seg.map(x=>({t:A.cleanForSpeech(x.t),p:x.p}));
+    // Pauses shrink with the speaking speed, except the thinking time before a quick-check answer (negative p), which stays 4 s.
+    const r=Math.max(1,(A.ttsRate?A.ttsRate():1.5));
+    return seg.map(x=>({t:A.cleanForSpeech(x.t),p:x.p<0?-x.p:Math.round(x.p/r)}));
   }
   let talking=false, paused=false, run=0, resumeFn=null;
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
@@ -199,7 +201,7 @@
     return new Promise(res=>{ if(!('speechSynthesis' in window)) return setTimeout(res,Math.min(8000,text.length*55));
       const parts=(text.match(/[^.!?]+[.!?]+["')\]]?\s*|[^.!?]+$/g)||[text]); let k=0;
       const next=()=>{ if(my!==run||k>=parts.length) return res(); const u=new SpeechSynthesisUtterance(parts[k++]); const v=A.bestVoice&&A.bestVoice(); if(v){ u.voice=v; u.lang=v.lang; } else u.lang='en-US';
-        u.rate=(A.S.tts&&A.S.tts.rate)||0.95; u.onend=next; u.onerror=()=>next(); try{ speechSynthesis.speak(u); }catch(e){ res(); } };
+        u.rate=(A.ttsRate?A.ttsRate():1.5); u.onend=next; u.onerror=()=>next(); try{ speechSynthesis.speak(u); }catch(e){ res(); } };
       next(); });
   }
   async function holdIfPaused(){ while(paused){ await new Promise(r=>{ resumeFn=r; }); } }
