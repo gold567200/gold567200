@@ -88,6 +88,7 @@
         <button class="btn ghost sm" id="gdpause" onclick="GUIDE.pause()" hidden>❚❚ Pause</button>
         <button class="btn ghost sm" id="gdstop" onclick="GUIDE.stop()" hidden>■ Stop</button>
         <span class="tag" id="gdnote"></span>
+        <label class="tag" style="display:flex;align-items:center;gap:6px">SPEED <input id="gdrate" type="range" min="0.5" max="2" step="0.05" value="${A.ttsRate?A.ttsRate():0.5}" oninput="GUIDE.rate(this.value)" style="width:110px" aria-label="Speaking speed"><span id="gdratev" class="mono" style="color:var(--cyan)">${(A.ttsRate?A.ttsRate():0.5).toFixed(2)}×</span></label>
         <span style="flex:1"></span>
         <button class="btn ghost sm" onclick="GUIDE.full()">📄 Full lesson page</button>
       </div>
@@ -243,6 +244,8 @@
     full:()=>{ stopTalk(); GP._fullView=cur.id; A.moduleView(cur.id); },
     guided:id=>{ setMode('guided'); GP._fullView=null; A.moduleView(id); },
     setMode, mode,
+    // Speed change while listening applies from the next sentence (and its pauses).
+    rate:v=>{ A.setRate(v); const l=$('gdratev'); if(l) l.textContent=(A.ttsRate?A.ttsRate():+v).toFixed(2)+'×'; },
     alwaysFull:()=>{ setMode('full'); A.toast('Lessons will open as one full page. The 🎯 Guided version button at the top of each lesson switches back.'); GUIDE.full(); },
     complete:()=>{ stopTalk(); A.completeModule(cur.id); },
     quiz:()=>{ stopTalk(); GP._fullView=cur.id; A.moduleView(cur.id); setTimeout(()=>{ const q=document.getElementById('lqbox'); if(q) q.scrollIntoView({block:'start'}); },60); },
