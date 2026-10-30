@@ -88,7 +88,7 @@
         <button class="btn ghost sm" id="gdpause" onclick="GUIDE.pause()" hidden>❚❚ Pause</button>
         <button class="btn ghost sm" id="gdstop" onclick="GUIDE.stop()" hidden>■ Stop</button>
         <span class="tag" id="gdnote"></span>
-        <label class="tag" style="display:flex;align-items:center;gap:6px">SPEED <input id="gdrate" type="range" min="0.5" max="2" step="0.05" value="${A.ttsRate?A.ttsRate():0.5}" oninput="GUIDE.rate(this.value)" style="width:110px" aria-label="Speaking speed"><span id="gdratev" class="mono" style="color:var(--cyan)">${(A.ttsRate?A.ttsRate():0.5).toFixed(2)}×</span></label>
+        <label class="tag" style="display:flex;align-items:center;gap:6px">SPEED <input id="gdrate" type="range" min="0.5" max="2" step="0.05" value="${A.ttsRate?A.ttsRate():1}" oninput="GUIDE.rate(this.value)" style="width:110px" aria-label="Speaking speed"><span id="gdratev" class="mono" style="color:var(--cyan)">${(A.ttsRate?A.ttsRate():1).toFixed(2)}×</span></label>
         <span style="flex:1"></span>
         <button class="btn ghost sm" onclick="GUIDE.full()">📄 Full lesson page</button>
       </div>
@@ -191,8 +191,8 @@
     else if(s.type==='recap'){ say('To consolidate, the '+nr+' points to retain.',800);
       F.remember.forEach((r,j)=>say((ORD[j]||'Finally')+'. '+r.p,1100));
       say('That concludes the lesson. Rest for a few minutes, then attempt the quiz: retrieving what you have learned is what makes it last.',300); }
-    // Pauses scale with the speaking speed (twice as long at 0.5×), except the thinking time before a quick-check answer (negative p), which stays 4 s.
-    const r=Math.max(0.5,(A.ttsRate?A.ttsRate():0.5));
+    // Pauses scale with the speaking speed (normal at 1×, twice as long at 0.5×), except the thinking time before a quick-check answer (negative p), which stays 4 s.
+    const r=Math.max(0.5,(A.ttsRate?A.ttsRate():1));
     return seg.map(x=>({t:A.cleanForSpeech(x.t),p:x.p<0?-x.p:Math.round(x.p/r)}));
   }
   let talking=false, paused=false, run=0, resumeFn=null;
@@ -204,7 +204,7 @@
     return new Promise(res=>{ if(!('speechSynthesis' in window)) return setTimeout(res,Math.min(8000,text.length*55));
       const parts=(text.match(/[^.!?]+[.!?]+["')\]]?\s*|[^.!?]+$/g)||[text]); let k=0;
       const next=()=>{ if(my!==run||k>=parts.length) return res(); const u=new SpeechSynthesisUtterance(parts[k++]); const v=A.bestVoice&&A.bestVoice(); if(v){ u.voice=v; u.lang=v.lang; } else u.lang='en-US';
-        u.rate=(A.ttsRate?A.ttsRate():0.5); u.onend=next; u.onerror=()=>next(); try{ speechSynthesis.speak(u); }catch(e){ res(); } };
+        u.rate=(A.ttsRate?A.ttsRate():1); u.onend=next; u.onerror=()=>next(); try{ speechSynthesis.speak(u); }catch(e){ res(); } };
       next(); });
   }
   async function holdIfPaused(){ while(paused){ await new Promise(r=>{ resumeFn=r; }); } }

@@ -2237,10 +2237,10 @@ command  : chmod ${octal} file</div>
   function setVoice(uri){
     if(window.GP_VOICE&&window.GP_VOICE_UI){ if(uri==='__pro__'){ GP_VOICE_UI.toggle(true); if(speaking){ const i=readIdx; stopRead(); startReading(i); } return; } if(GP_VOICE.available()&&GP_VOICE.prefs().on) GP_VOICE_UI.toggle(false); }
     S.tts=S.tts||{}; S.tts.voice=uri; save(); if(speaking){ const i=readIdx; stopRead(); startReading(i); } }
-  // Speaking speed for every voice (device, on-device professor, ElevenLabs). 0.5× by default since v70 (the learner's choice).
-  const TTS={def:0.5,min:0.5,max:2};
+  // Speaking speed for every voice (device, on-device professor, ElevenLabs). 1× by default (the learner's choice, after trying 1.5× and 0.5×).
+  const TTS={def:1,min:0.5,max:2};
   function ttsRate(){ const r=Number(S.tts&&S.tts.rate); return Math.max(TTS.min,Math.min(TTS.max,Number.isFinite(r)&&r>0?r:TTS.def)); }
-  function setRate(r){ S.tts=S.tts||{}; S.tts.rate=Math.max(TTS.min,Math.min(TTS.max,+r||TTS.def)); S.tts.v=3; save(); const v=el("ttsratev"); if(v) v.textContent=S.tts.rate.toFixed(2)+"×"; }
+  function setRate(r){ S.tts=S.tts||{}; S.tts.rate=Math.max(TTS.min,Math.min(TTS.max,+r||TTS.def)); S.tts.v=4; save(); const v=el("ttsratev"); if(v) v.textContent=S.tts.rate.toFixed(2)+"×"; }
   function voiceHelp(){
     const h=el("ttshelp"); if(!h) return; h.style.display=h.style.display==='none'?'block':'none';
     const ua=navigator.userAgent; let tip;
@@ -2381,8 +2381,8 @@ command  : chmod ${octal} file</div>
     getSample, ADA_SYS, bestVoice, cleanForSpeech, tableSpeech, stopRead, voiceList, fillVoiceSelect, completeModule, moduleView };
   window.GP_API=API;
   function boot(){
-    // v70: speech speed moves to 0.5× once (the learner asked for it); the SPEED slider still changes it.
-    if(!S.tts||S.tts.v!==3){ S.tts=S.tts||{}; S.tts.rate=TTS.def; S.tts.v=3; }
+    // v70: "double the speed": a speed saved under the 0.5× default (v3) is doubled once; older or missing speeds become 1×.
+    if(!S.tts||S.tts.v!==4){ S.tts=S.tts||{}; const old=Number(S.tts.rate); S.tts.rate=S.tts.v===3&&old>0?Math.max(TTS.min,Math.min(TTS.max,Math.round(old*2*20)/20)):TTS.def; S.tts.v=4; }
     renderHUD();
     if(S.readpx) document.documentElement.style.setProperty('--read',S.readpx+'px');
     document.addEventListener('click',e=>{ if(!e.target.closest('.kw')) hideKw(); });

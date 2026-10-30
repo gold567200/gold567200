@@ -81,7 +81,7 @@
         readOnScreen(parts.slice(Math.max(0,k-1)).join(' '),label).then(res); };
       const next=()=>{ clearTimeout(guard); if(st.abort||st.paused) return res(); if(k>=parts.length) return res();
         const u=new SpeechSynthesisUtterance(parts[k++]); const v=A.bestVoice(); if(v){ u.voice=v; u.lang=v.lang||'en-US'; } else u.lang='en-US';
-        u.rate=(A.ttsRate?A.ttsRate():0.5); u.pitch=1; u.volume=1;
+        u.rate=(A.ttsRate?A.ttsRate():1); u.pitch=1; u.volume=1;
         u.onstart=()=>{ started=true; st.tts=true; clearTimeout(guard); };
         u.onend=next; u.onerror=(e)=>{ clearTimeout(guard); const er=e&&e.error; if(er==='interrupted'||er==='canceled') return res(); if(er==='not-allowed'||(!started&&er==='synthesis-failed')) return fallback(); next(); };
         try{ speechSynthesis.speak(u); }catch(e){ return fallback(); }
@@ -200,8 +200,8 @@
     if(c==='next'||c==='skip'){ return 'next'; }
     if(c==='pause'){ st.paused=true; await waitIfPaused(); return 'again'; }
     if(c==='stop'){ stop(true); return 'stop'; }
-    if(c==='slower'){ A.setRate((A.ttsRate?A.ttsRate():0.5)-0.25); await speak("Slower. Like this."); return 'again'; }
-    if(c==='faster'){ A.setRate((A.ttsRate?A.ttsRate():0.5)+0.25); await speak("Faster. Like this."); return 'again'; }
+    if(c==='slower'){ A.setRate((A.ttsRate?A.ttsRate():1)-0.25); await speak("Slower. Like this."); return 'again'; }
+    if(c==='faster'){ A.setRate((A.ttsRate?A.ttsRate():1)+0.25); await speak("Faster. Like this."); return 'again'; }
     if(c==='simpler'){ const s=st.steps[st.i-1]&&st.steps[st.i-1].section; const t=await ada("Explain this section of '"+st.m.title+"' again as if to a bright twelve-year-old, with one everyday analogy, then connect the analogy back to the real terms:\n\n"+((s&&s.text)||st.m.title).slice(0,1500),120); await speak(t||"Here's the simple version again. "+(((window.SIMPLE||{})[st.m.id]||{}).idea||'')); return 'next'; }
     if(c==='question'){ await speak(micUsable()?"Go ahead, ask your question.":"Type your question, or dictate it with your keyboard's microphone."); const r=await listen({kind:'question',maxMs:20000,label:micUsable()?'Listening for your question':'Type or dictate your question'}); if(r.text){ const t=await ada("The student asked, out loud, during the lesson '"+st.m.title+"': \""+r.text+"\". Answer clearly in under 90 spoken words, then say 'Back to the lesson.'",90); await speak(t||"I can't reach my answer engine right now. Let's keep going and ask ADA later. Back to the lesson."); } return 'next'; }
     return null;
